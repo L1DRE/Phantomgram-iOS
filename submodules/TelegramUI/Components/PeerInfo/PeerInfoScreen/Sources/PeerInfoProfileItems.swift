@@ -900,6 +900,22 @@ func infoItems(
         }
     }
     
+    // Phantom: the ID (in the form bots and other clients use) and, for users, an estimated
+    // registration date. Tapping either copies it.
+    if PhantomSettings.showPeerId, let peer = data.peer {
+        let isRussian = presentationData.strings.primaryComponent.languageCode.hasPrefix("ru")
+        let idText = phantomDisplayPeerId(peer)
+        items[.peerInfo]!.append(PeerInfoScreenLabeledValueItem(id: 90000, label: "ID", text: idText, textColor: .primary, action: { _, _ in
+            UIPasteboard.general.string = idText
+        }, requestLayout: { _ in }))
+        if case let .user(user) = peer {
+            let dateText = phantomEstimatedRegistrationText(userId: user.id.id._internalGetInt64Value(), languageCode: presentationData.strings.primaryComponent.languageCode)
+            items[.peerInfo]!.append(PeerInfoScreenLabeledValueItem(id: 90001, label: isRussian ? "Регистрация (примерно)" : "Registered (approx.)", text: dateText, textColor: .primary, action: { _, _ in
+                UIPasteboard.general.string = dateText
+            }, requestLayout: { _ in }))
+        }
+    }
+    
     var result: [(AnyHashable, [PeerInfoScreenItem])] = []
     for section in InfoSection.allCases {
         if let sectionItems = items[section], !sectionItems.isEmpty {
@@ -907,6 +923,55 @@ func infoItems(
         }
     }
     return result
+}
+
+/// Phantom: the ID as the Bot API writes it: users as is, basic groups negative, channels and
+/// supergroups with the -100 prefix.
+private func phantomDisplayPeerId(_ peer: EnginePeer) -> String {
+    let rawId = peer.id.id._internalGetInt64Value()
+    switch peer {
+    case .legacyGroup:
+        return "-\(rawId)"
+    case .channel:
+        return "-100\(rawId)"
+    default:
+        return "\(rawId)"
+    }
+}
+
+/// Phantom: user IDs grow over time, so known (ID, sign-up date) points give the month an account
+/// was made, give or take a few months. Newer points are rougher.
+private let phantomRegistrationPoints: [(Int64, Double)] = [
+    (2768409, 1383264000), (7679610, 1388448000), (11538514, 1391212000), (15835244, 1392940000),
+    (23646077, 1393459000), (38015510, 1393632000), (44634663, 1399334000), (46145305, 1400198000),
+    (54845238, 1411257000), (63263518, 1414454000), (101260938, 1425600000), (111220210, 1429574000),
+    (124872445, 1439856000), (130029930, 1441324000), (133909606, 1444176000), (157242073, 1446768000),
+    (171295414, 1457481000), (181783990, 1460246000), (222021233, 1465344000), (225034354, 1466208000),
+    (278941742, 1473465000), (285253072, 1476835000), (294851037, 1479600000), (328594461, 1482969000),
+    (352940995, 1487894000), (369669043, 1490918000), (400169472, 1501459000), (805158066, 1563208000),
+    (1974255900, 1634000000), (5000000000, 1640995200), (6000000000, 1688169600), (7000000000, 1717200000),
+    (8000000000, 1748736000)
+]
+
+private func phantomEstimatedRegistrationText(userId: Int64, languageCode: String) -> String {
+    let points = phantomRegistrationPoints
+    var timestamp: Double
+    if userId <= points[0].0 {
+        timestamp = points[0].1
+    } else if let upper = points.firstIndex(where: { $0.0 >= userId }) {
+        let (id0, t0) = points[upper - 1]
+        let (id1, t1) = points[upper]
+        timestamp = t0 + (t1 - t0) * Double(userId - id0) / Double(id1 - id0)
+    } else {
+        let (id0, t0) = points[points.count - 2]
+        let (id1, t1) = points[points.count - 1]
+        timestamp = t1 + (t1 - t0) * Double(userId - id1) / Double(id1 - id0)
+    }
+    timestamp = min(timestamp, Date().timeIntervalSince1970)
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: languageCode)
+    formatter.setLocalizedDateFormatFromTemplate("LLLL yyyy")
+    return "≈ " + formatter.string(from: Date(timeIntervalSince1970: timestamp))
 }
 
 func editingItems(data: PeerInfoScreenData?, boostStatus: ChannelBoostStatus?, state: PeerInfoState, chatLocation: ChatLocation, context: AccountContext, presentationData: PresentationData, interaction: PeerInfoInteraction) -> [(AnyHashable, [PeerInfoScreenItem])] {

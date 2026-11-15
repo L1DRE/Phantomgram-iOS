@@ -8,96 +8,118 @@ import ItemListUI
 import PresentationDataUtils
 import AccountContext
 
-private final class PhantomSettingsControllerArguments {
-    let updateGhostMode: (Bool) -> Void
-    let updateSendReadMessages: (Bool) -> Void
-    let updateSendOnlinePackets: (Bool) -> Void
-    let updateSendTyping: (Bool) -> Void
-    let updateSaveDeletedMessages: (Bool) -> Void
-    let updateSaveEditsHistory: (Bool) -> Void
+/// One switch on the screen, bound to one `PhantomSettings` flag.
+private enum PhantomToggle: Int32 {
+    case ghostMode
+    case sendRead
+    case sendOnline
+    case sendTyping
+    case sendStories
+    case sendConsumed
+    case markReadOnSend
+    case saveDeleted
+    case saveEdits
+    case showSeconds
+    case hideAds
+    case showPeerId
 
-    init(
-        updateGhostMode: @escaping (Bool) -> Void,
-        updateSendReadMessages: @escaping (Bool) -> Void,
-        updateSendOnlinePackets: @escaping (Bool) -> Void,
-        updateSendTyping: @escaping (Bool) -> Void,
-        updateSaveDeletedMessages: @escaping (Bool) -> Void,
-        updateSaveEditsHistory: @escaping (Bool) -> Void
-    ) {
-        self.updateGhostMode = updateGhostMode
-        self.updateSendReadMessages = updateSendReadMessages
-        self.updateSendOnlinePackets = updateSendOnlinePackets
-        self.updateSendTyping = updateSendTyping
-        self.updateSaveDeletedMessages = updateSaveDeletedMessages
-        self.updateSaveEditsHistory = updateSaveEditsHistory
+    var value: Bool {
+        switch self {
+        case .ghostMode: return PhantomSettings.ghostMode
+        case .sendRead: return PhantomSettings.sendReadMessages
+        case .sendOnline: return PhantomSettings.sendOnlinePackets
+        case .sendTyping: return PhantomSettings.sendTyping
+        case .sendStories: return PhantomSettings.sendStoriesSeen
+        case .sendConsumed: return PhantomSettings.sendContentConsumed
+        case .markReadOnSend: return PhantomSettings.markReadOnSend
+        case .saveDeleted: return PhantomSettings.saveDeletedMessages
+        case .saveEdits: return PhantomSettings.saveEditsHistory
+        case .showSeconds: return PhantomSettings.showMessageSeconds
+        case .hideAds: return PhantomSettings.hideSponsoredMessages
+        case .showPeerId: return PhantomSettings.showPeerId
+        }
+    }
+
+    func set(_ value: Bool) {
+        switch self {
+        case .ghostMode: PhantomSettings.ghostMode = value
+        case .sendRead: PhantomSettings.sendReadMessages = value
+        case .sendOnline: PhantomSettings.sendOnlinePackets = value
+        case .sendTyping: PhantomSettings.sendTyping = value
+        case .sendStories: PhantomSettings.sendStoriesSeen = value
+        case .sendConsumed: PhantomSettings.sendContentConsumed = value
+        case .markReadOnSend: PhantomSettings.markReadOnSend = value
+        case .saveDeleted: PhantomSettings.saveDeletedMessages = value
+        case .saveEdits: PhantomSettings.saveEditsHistory = value
+        case .showSeconds: PhantomSettings.showMessageSeconds = value
+        case .hideAds: PhantomSettings.hideSponsoredMessages = value
+        case .showPeerId: PhantomSettings.showPeerId = value
+        }
+    }
+}
+
+private final class PhantomSettingsControllerArguments {
+    let update: (PhantomToggle, Bool) -> Void
+
+    init(update: @escaping (PhantomToggle, Bool) -> Void) {
+        self.update = update
     }
 }
 
 private struct PhantomSettingsState: Equatable {
-    var sendReadMessages: Bool
-    var sendOnlinePackets: Bool
-    var sendTyping: Bool
-    var saveDeletedMessages: Bool
-    var saveEditsHistory: Bool
-
-    var ghostMode: Bool {
-        return !self.sendReadMessages && !self.sendOnlinePackets && !self.sendTyping
-    }
+    var values: [Int32: Bool]
 
     static func current() -> PhantomSettingsState {
-        return PhantomSettingsState(
-            sendReadMessages: PhantomSettings.sendReadMessages,
-            sendOnlinePackets: PhantomSettings.sendOnlinePackets,
-            sendTyping: PhantomSettings.sendTyping,
-            saveDeletedMessages: PhantomSettings.saveDeletedMessages,
-            saveEditsHistory: PhantomSettings.saveEditsHistory
-        )
+        var values: [Int32: Bool] = [:]
+        var raw: Int32 = 0
+        while let toggle = PhantomToggle(rawValue: raw) {
+            values[raw] = toggle.value
+            raw += 1
+        }
+        return PhantomSettingsState(values: values)
+    }
+
+    func value(_ toggle: PhantomToggle) -> Bool {
+        return self.values[toggle.rawValue] ?? false
     }
 }
 
 /// The screen is not translated through PresentationStrings: Russian when the app language is
 /// Russian, English otherwise.
 private struct PhantomStrings {
-    let title: String
-    let ghostHeader: String
-    let ghostMode: String
-    let ghostFooter: String
-    let sendRead: String
-    let sendOnline: String
-    let sendTyping: String
-    let detailsFooter: String
-    let historyHeader: String
-    let saveDeleted: String
-    let saveEdits: String
-    let historyFooter: String
+    let isRussian: Bool
 
     init(languageCode: String) {
-        if languageCode.hasPrefix("ru") {
-            self.title = "Phantomgram"
-            self.ghostHeader = "РЕЖИМ ПРИЗРАКА"
-            self.ghostMode = "Режим призрака"
-            self.ghostFooter = "Другие не увидят, что вы в сети, печатаете или прочитали их сообщения."
-            self.sendRead = "Отправлять «прочитано»"
-            self.sendOnline = "Отправлять «в сети»"
-            self.sendTyping = "Отправлять «печатает»"
-            self.detailsFooter = "Прочитанные сообщения остаются прочитанными только на этом устройстве."
-            self.historyHeader = "ИСТОРИЯ СООБЩЕНИЙ"
-            self.saveDeleted = "Сохранять удалённые сообщения"
-            self.saveEdits = "Сохранять историю правок"
-            self.historyFooter = "Удалённые сообщения помечаются значком 🗑 у времени. Старые версии текста — в меню сообщения, пункт «История правок». Всё хранится только на этом устройстве и только для чатов, которые были загружены. Самоуничтожающиеся сообщения не сохраняются."
-        } else {
-            self.title = "Phantomgram"
-            self.ghostHeader = "GHOST MODE"
-            self.ghostMode = "Ghost Mode"
-            self.ghostFooter = "Others won't see that you are online, typing, or have read their messages."
-            self.sendRead = "Send Read Receipts"
-            self.sendOnline = "Send Online Status"
-            self.sendTyping = "Send Typing Status"
-            self.detailsFooter = "Messages you read stay read only on this device."
-            self.historyHeader = "MESSAGE HISTORY"
-            self.saveDeleted = "Save Deleted Messages"
-            self.saveEdits = "Save Edit History"
-            self.historyFooter = "Deleted messages show 🗑 next to the time. Earlier versions of a text are in the message menu under Edit History. Everything stays on this device, only for chats that were loaded. Self-destructing messages are not kept."
+        self.isRussian = languageCode.hasPrefix("ru")
+    }
+
+    private func t(_ ru: String, _ en: String) -> String {
+        return self.isRussian ? ru : en
+    }
+
+    var title: String { return "Phantomgram" }
+    var ghostHeader: String { return t("РЕЖИМ ПРИЗРАКА", "GHOST MODE") }
+    var ghostFooter: String { return t("Другие не увидят, что вы в сети, печатаете, прочитали сообщения, посмотрели истории или прослушали голосовые.", "Others won't see that you are online, typing, or have read their messages, watched their stories or played their voice messages.") }
+    var detailsFooter: String { return t("Прочитанное остаётся прочитанным только на этом устройстве. «Прочитать при отправке»: когда вы пишете в чат, он отмечается прочитанным, как в обычном Telegram.", "What you read stays read only on this device. Mark Read When Sending: writing in a chat marks it as read, as the official app would.") }
+    var historyHeader: String { return t("ИСТОРИЯ СООБЩЕНИЙ", "MESSAGE HISTORY") }
+    var historyFooter: String { return t("Удалённые сообщения помечаются значком 🗑 у времени. Старые версии текста — в меню сообщения, пункт «История правок». Всё хранится только на этом устройстве и только для чатов, которые были загружены. Самоуничтожающиеся сообщения не сохраняются.", "Deleted messages show 🗑 next to the time. Earlier versions of a text are in the message menu under Edit History. Everything stays on this device, only for chats that were loaded. Self-destructing messages are not kept.") }
+    var interfaceHeader: String { return t("ИНТЕРФЕЙС", "INTERFACE") }
+    var interfaceFooter: String { return t("Дата регистрации — оценка по ID, точность до нескольких месяцев. Нажатие на ID или дату копирует их. Аккаунтов можно добавить до 10.", "The registration date is estimated from the ID and can be off by a few months. Tap the ID or date to copy it. Up to 10 accounts can be added.") }
+
+    func title(_ toggle: PhantomToggle) -> String {
+        switch toggle {
+        case .ghostMode: return t("Режим призрака", "Ghost Mode")
+        case .sendRead: return t("Отправлять «прочитано»", "Send Read Receipts")
+        case .sendOnline: return t("Отправлять «в сети»", "Send Online Status")
+        case .sendTyping: return t("Отправлять «печатает»", "Send Typing Status")
+        case .sendStories: return t("Отмечать истории просмотренными", "Mark Stories as Viewed")
+        case .sendConsumed: return t("Отмечать голосовые прослушанными", "Mark Voice Messages as Played")
+        case .markReadOnSend: return t("Прочитать при отправке", "Mark Read When Sending")
+        case .saveDeleted: return t("Сохранять удалённые сообщения", "Save Deleted Messages")
+        case .saveEdits: return t("Сохранять историю правок", "Save Edit History")
+        case .showSeconds: return t("Секунды во времени сообщений", "Seconds in Message Time")
+        case .hideAds: return t("Скрыть рекламу в каналах", "Hide Sponsored Messages")
+        case .showPeerId: return t("ID и дата регистрации в профиле", "ID and Sign-Up Date in Profiles")
         }
     }
 }
@@ -106,56 +128,25 @@ private enum PhantomSettingsSection: Int32 {
     case ghost
     case details
     case history
+    case interface
 }
 
 private enum PhantomSettingsEntry: ItemListNodeEntry {
-    case ghostHeader(String)
-    case ghostMode(String, Bool)
-    case ghostFooter(String)
-    case sendRead(String, Bool)
-    case sendOnline(String, Bool)
-    case sendTyping(String, Bool)
-    case detailsFooter(String)
-    case historyHeader(String)
-    case saveDeleted(String, Bool)
-    case saveEdits(String, Bool)
-    case historyFooter(String)
+    case header(PhantomSettingsSection, Int32, String)
+    case toggle(PhantomSettingsSection, Int32, PhantomToggle, String, Bool)
+    case footer(PhantomSettingsSection, Int32, String)
 
     var section: ItemListSectionId {
         switch self {
-        case .ghostHeader, .ghostMode, .ghostFooter:
-            return PhantomSettingsSection.ghost.rawValue
-        case .sendRead, .sendOnline, .sendTyping, .detailsFooter:
-            return PhantomSettingsSection.details.rawValue
-        case .historyHeader, .saveDeleted, .saveEdits, .historyFooter:
-            return PhantomSettingsSection.history.rawValue
+        case let .header(section, _, _), let .toggle(section, _, _, _, _), let .footer(section, _, _):
+            return section.rawValue
         }
     }
 
     var stableId: Int32 {
         switch self {
-        case .ghostHeader:
-            return 0
-        case .ghostMode:
-            return 1
-        case .ghostFooter:
-            return 2
-        case .sendRead:
-            return 3
-        case .sendOnline:
-            return 4
-        case .sendTyping:
-            return 5
-        case .detailsFooter:
-            return 6
-        case .historyHeader:
-            return 7
-        case .saveDeleted:
-            return 8
-        case .saveEdits:
-            return 9
-        case .historyFooter:
-            return 10
+        case let .header(_, id, _), let .toggle(_, id, _, _, _), let .footer(_, id, _):
+            return id
         }
     }
 
@@ -166,33 +157,13 @@ private enum PhantomSettingsEntry: ItemListNodeEntry {
     func item(presentationData: ItemListPresentationData, arguments: Any) -> ListViewItem {
         let arguments = arguments as! PhantomSettingsControllerArguments
         switch self {
-        case let .ghostHeader(text), let .historyHeader(text):
+        case let .header(_, _, text):
             return ItemListSectionHeaderItem(presentationData: presentationData, text: text, sectionId: self.section)
-        case let .ghostFooter(text), let .detailsFooter(text), let .historyFooter(text):
+        case let .footer(_, _, text):
             return ItemListTextItem(presentationData: presentationData, text: .plain(text), sectionId: self.section)
-        case let .ghostMode(title, value):
+        case let .toggle(_, _, toggle, title, value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: title, value: value, sectionId: self.section, style: .blocks, updated: { value in
-                arguments.updateGhostMode(value)
-            })
-        case let .sendRead(title, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: title, value: value, sectionId: self.section, style: .blocks, updated: { value in
-                arguments.updateSendReadMessages(value)
-            })
-        case let .sendOnline(title, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: title, value: value, sectionId: self.section, style: .blocks, updated: { value in
-                arguments.updateSendOnlinePackets(value)
-            })
-        case let .sendTyping(title, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: title, value: value, sectionId: self.section, style: .blocks, updated: { value in
-                arguments.updateSendTyping(value)
-            })
-        case let .saveDeleted(title, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: title, value: value, sectionId: self.section, style: .blocks, updated: { value in
-                arguments.updateSaveDeletedMessages(value)
-            })
-        case let .saveEdits(title, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: title, value: value, sectionId: self.section, style: .blocks, updated: { value in
-                arguments.updateSaveEditsHistory(value)
+                arguments.update(toggle, value)
             })
         }
     }
@@ -200,52 +171,49 @@ private enum PhantomSettingsEntry: ItemListNodeEntry {
 
 private func phantomSettingsEntries(strings: PhantomStrings, state: PhantomSettingsState) -> [PhantomSettingsEntry] {
     var entries: [PhantomSettingsEntry] = []
-    entries.append(.ghostHeader(strings.ghostHeader))
-    entries.append(.ghostMode(strings.ghostMode, state.ghostMode))
-    entries.append(.ghostFooter(strings.ghostFooter))
-    entries.append(.sendRead(strings.sendRead, state.sendReadMessages))
-    entries.append(.sendOnline(strings.sendOnline, state.sendOnlinePackets))
-    entries.append(.sendTyping(strings.sendTyping, state.sendTyping))
-    entries.append(.detailsFooter(strings.detailsFooter))
-    entries.append(.historyHeader(strings.historyHeader))
-    entries.append(.saveDeleted(strings.saveDeleted, state.saveDeletedMessages))
-    entries.append(.saveEdits(strings.saveEdits, state.saveEditsHistory))
-    entries.append(.historyFooter(strings.historyFooter))
+    var nextId: Int32 = 0
+    func header(_ section: PhantomSettingsSection, _ text: String) {
+        entries.append(.header(section, nextId, text))
+        nextId += 1
+    }
+    func toggle(_ section: PhantomSettingsSection, _ toggle: PhantomToggle) {
+        entries.append(.toggle(section, nextId, toggle, strings.title(toggle), state.value(toggle)))
+        nextId += 1
+    }
+    func footer(_ section: PhantomSettingsSection, _ text: String) {
+        entries.append(.footer(section, nextId, text))
+        nextId += 1
+    }
+
+    header(.ghost, strings.ghostHeader)
+    toggle(.ghost, .ghostMode)
+    footer(.ghost, strings.ghostFooter)
+
+    for item in [PhantomToggle.sendRead, .sendOnline, .sendTyping, .sendStories, .sendConsumed, .markReadOnSend] {
+        toggle(.details, item)
+    }
+    footer(.details, strings.detailsFooter)
+
+    header(.history, strings.historyHeader)
+    toggle(.history, .saveDeleted)
+    toggle(.history, .saveEdits)
+    footer(.history, strings.historyFooter)
+
+    header(.interface, strings.interfaceHeader)
+    toggle(.interface, .showSeconds)
+    toggle(.interface, .hideAds)
+    toggle(.interface, .showPeerId)
+    footer(.interface, strings.interfaceFooter)
     return entries
 }
 
 public func phantomSettingsController(context: AccountContext) -> ViewController {
     let statePromise = ValuePromise(PhantomSettingsState.current(), ignoreRepeated: true)
-    let refresh: () -> Void = {
-        statePromise.set(PhantomSettingsState.current())
-    }
 
-    let arguments = PhantomSettingsControllerArguments(
-        updateGhostMode: { value in
-            PhantomSettings.ghostMode = value
-            refresh()
-        },
-        updateSendReadMessages: { value in
-            PhantomSettings.sendReadMessages = value
-            refresh()
-        },
-        updateSendOnlinePackets: { value in
-            PhantomSettings.sendOnlinePackets = value
-            refresh()
-        },
-        updateSendTyping: { value in
-            PhantomSettings.sendTyping = value
-            refresh()
-        },
-        updateSaveDeletedMessages: { value in
-            PhantomSettings.saveDeletedMessages = value
-            refresh()
-        },
-        updateSaveEditsHistory: { value in
-            PhantomSettings.saveEditsHistory = value
-            refresh()
-        }
-    )
+    let arguments = PhantomSettingsControllerArguments(update: { toggle, value in
+        toggle.set(value)
+        statePromise.set(PhantomSettingsState.current())
+    })
 
     let signal = combineLatest(queue: .mainQueue(),
         context.sharedContext.presentationData,

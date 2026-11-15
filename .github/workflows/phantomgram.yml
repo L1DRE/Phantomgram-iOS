@@ -1,29 +1,21 @@
 name: Build Phantomgram
 
-# Two modes:
-# - check:   every push. A debug build; its .ipa installs too (slower app, fine for testing).
-# - release: run by hand (Actions → Build Phantomgram → Run workflow). Builds the .ipa files.
+# Every push builds the release .ipa (measured cold: release 1h34m, debug 2h52m, so there is
+# no faster "check" build). Run by hand from Actions → Build Phantomgram → Run workflow too.
 on:
   push:
     branches: [ phantomgram ]
     paths-ignore: [ '**.md' ]
   workflow_dispatch:
-    inputs:
-      mode:
-        description: 'check = fast compile check, release = build the .ipa'
-        type: choice
-        options: [ release, check ]
-        default: release
 
 env:
-  MODE: ${{ inputs.mode || 'check' }}
   SOURCE_DIR: /Users/Shared/telegram-ios
   CACHE_DIR: /Users/Shared/bazel-cache
-  # GitHub keeps up to 10 GB of caches per repository; leave room for both modes.
-  CACHE_LIMIT_GB: '4.5'
+  # GitHub keeps up to 10 GB of caches per repository; one shared cache takes almost all of it.
+  CACHE_LIMIT_GB: '9'
 
 concurrency:
-  group: phantomgram-${{ inputs.mode || 'check' }}
+  group: phantomgram
   cancel-in-progress: true
 
 jobs:
@@ -44,11 +36,7 @@ jobs:
           echo "XCODE_VERSION=$XCODE_VERSION" >> "$GITHUB_ENV"
           sudo xcode-select -s /Applications/Xcode_$XCODE_VERSION.app/Contents/Developer
           xcodebuild -version
-          if [ "$MODE" = release ]; then
-            echo "CONFIGURATION=release_arm64" >> "$GITHUB_ENV"
-          else
-            echo "CONFIGURATION=debug_arm64" >> "$GITHUB_ENV"
-          fi
+          echo "CONFIGURATION=release_arm64" >> "$GITHUB_ENV"
 
       - name: Free disk space
         run: |
@@ -80,8 +68,8 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ env.CACHE_DIR }}
-          key: bazel-${{ env.MODE }}-${{ github.run_id }}
-          restore-keys: bazel-${{ env.MODE }}-
+          key: bazel-release-${{ github.run_id }}
+          restore-keys: bazel-release-
 
       - name: Build
         working-directory: ${{ env.SOURCE_DIR }}
@@ -142,7 +130,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: ${{ env.CACHE_DIR }}
-          key: bazel-${{ env.MODE }}-${{ github.run_id }}
+          key: bazel-release-${{ github.run_id }}
 
       - name: Package
         working-directory: ${{ env.SOURCE_DIR }}
@@ -165,7 +153,7 @@ jobs:
       - name: Upload .ipa
         uses: actions/upload-artifact@v4
         with:
-          name: Phantomgram-${{ env.MODE }}-${{ env.APP_VERSION }}-${{ env.BUILD_NUMBER }}
+          name: Phantomgram-${{ env.APP_VERSION }}-${{ env.BUILD_NUMBER }}
           path: ${{ env.SOURCE_DIR }}/out/*.ipa
           retention-days: 30
 
@@ -173,6 +161,6 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: bazel-logs-${{ env.MODE }}
+          name: bazel-logs
           path: /private/var/tmp/_bazel_runner/**/command.log
           if-no-files-found: ignore

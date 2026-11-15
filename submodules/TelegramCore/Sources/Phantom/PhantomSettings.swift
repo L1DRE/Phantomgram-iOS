@@ -14,6 +14,12 @@ public enum PhantomSettings {
         static let sendTyping = "phantom.sendTyping"
         static let saveDeletedMessages = "phantom.saveDeletedMessages"
         static let saveEditsHistory = "phantom.saveEditsHistory"
+        static let sendStoriesSeen = "phantom.sendStoriesSeen"
+        static let sendContentConsumed = "phantom.sendContentConsumed"
+        static let markReadOnSend = "phantom.markReadOnSend"
+        static let showMessageSeconds = "phantom.showMessageSeconds"
+        static let hideSponsoredMessages = "phantom.hideSponsoredMessages"
+        static let showPeerId = "phantom.showPeerId"
     }
 
     private static func bool(_ key: String, default defaultValue: Bool) -> Bool {
@@ -59,14 +65,53 @@ public enum PhantomSettings {
         set { set(newValue, Key.saveEditsHistory) }
     }
 
+    /// Tell the server which stories were watched (the author sees you in the viewers list).
+    public static var sendStoriesSeen: Bool {
+        get { return bool(Key.sendStoriesSeen, default: true) }
+        set { set(newValue, Key.sendStoriesSeen) }
+    }
+
+    /// Tell the server that voice messages, video messages and other consumable content were
+    /// played (the sender sees the dot disappear). Self-destructing media keep their timers.
+    public static var sendContentConsumed: Bool {
+        get { return bool(Key.sendContentConsumed, default: true) }
+        set { set(newValue, Key.sendContentConsumed) }
+    }
+
+    /// With read receipts off, still mark a chat as read when sending a message in it, as the
+    /// official client would have done long before the reply.
+    public static var markReadOnSend: Bool {
+        get { return bool(Key.markReadOnSend, default: true) }
+        set { set(newValue, Key.markReadOnSend) }
+    }
+
+    /// Show seconds in message timestamps.
+    public static var showMessageSeconds: Bool {
+        get { return bool(Key.showMessageSeconds, default: false) }
+        set { set(newValue, Key.showMessageSeconds) }
+    }
+
+    /// Do not load or show sponsored messages in channels.
+    public static var hideSponsoredMessages: Bool {
+        get { return bool(Key.hideSponsoredMessages, default: false) }
+        set { set(newValue, Key.hideSponsoredMessages) }
+    }
+
+    /// Show the user or chat ID and an estimated registration date in profiles.
+    public static var showPeerId: Bool {
+        get { return bool(Key.showPeerId, default: true) }
+        set { set(newValue, Key.showPeerId) }
+    }
+
+    private static let ghostKeys = [Key.sendReadMessages, Key.sendOnlinePackets, Key.sendTyping, Key.sendStoriesSeen, Key.sendContentConsumed]
+
     /// Ghost mode is on when nothing that reveals activity is sent.
     public static var ghostMode: Bool {
-        get { return !sendReadMessages && !sendOnlinePackets && !sendTyping }
+        get { return !ghostKeys.contains(where: { bool($0, default: true) }) }
         set {
-            let send = !newValue
-            UserDefaults.standard.set(send, forKey: Key.sendReadMessages)
-            UserDefaults.standard.set(send, forKey: Key.sendOnlinePackets)
-            UserDefaults.standard.set(send, forKey: Key.sendTyping)
+            for key in ghostKeys {
+                UserDefaults.standard.set(!newValue, forKey: key)
+            }
             NotificationCenter.default.post(name: PhantomSettings.didChangeNotification, object: nil)
         }
     }

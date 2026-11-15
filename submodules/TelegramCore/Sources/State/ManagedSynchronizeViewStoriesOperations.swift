@@ -122,6 +122,10 @@ private func pushStoriesAreSeen(postbox: Postbox, network: Network, stateManager
     guard let inputPeer = apiInputPeer(peer) else {
         return .complete()
     }
+    if !PhantomSettings.sendStoriesSeen {
+        // Phantom: watched only on this device; the author's viewers list stays unchanged.
+        return .complete()
+    }
     return network.request(Api.functions.stories.readStories(peer: inputPeer, maxId: operation.storyId))
     |> `catch` { _ -> Signal<[Int32], NoError> in
         return .single([])

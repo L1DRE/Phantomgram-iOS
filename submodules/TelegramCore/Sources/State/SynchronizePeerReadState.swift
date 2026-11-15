@@ -246,9 +246,9 @@ private func validatePeerReadState(network: Network, postbox: Postbox, stateMana
     return maybeAppliedReadState
 }
 
-private func pushPeerReadState(network: Network, postbox: Postbox, stateManager: AccountStateManager, peerId: PeerId, readState: PeerReadState) -> Signal<PeerReadState, PeerReadStateValidationError> {
+private func pushPeerReadState(network: Network, postbox: Postbox, stateManager: AccountStateManager, peerId: PeerId, readState: PeerReadState, phantomForce: Bool = false) -> Signal<PeerReadState, PeerReadStateValidationError> {
     // Phantom: messages stay read on this device, but the server (and the sender) is never told.
-    if !PhantomSettings.sendReadMessages {
+    if !PhantomSettings.sendReadMessages && !phantomForce {
         return .single(readState)
     }
     if peerId.namespace == Namespaces.Peer.SecretChat {
@@ -434,4 +434,33 @@ func synchronizePeerReadState(network: Network, postbox: Postbox, stateManager: 
         |> then(validatePeerReadState(network: network, postbox: postbox, stateManager: stateManager, peerId: peerId))
     }
     return signal
+}
+
+/// Phantom: with read receipts off, sending a message in a chat still tells the server that the
+/// chat was read, as replying without reading would give the game away.
+func phantomPushReadStateOnSend(account: Account, peerId: PeerId) {
+    if PhantomSettings.sendReadMessages || !PhantomSettings.markReadOnSend {
+        return
+    }
+    guard let stateManager = account.stateManager else {
+        return
+    }
+    let postbox = account.postbox
+    let network = account.network
+    let _ = (postbox.transaction { transaction -> PeerReadState? in
+        guard let readStates = transaction.getPeerReadStates(peerId) else {
+            return nil
+        }
+        for (namespace, readState) in readStates where namespace == Namespaces.Message.Cloud || namespace == Namespaces.Message.SecretIncoming {
+            return readState
+        }
+        return nil
+    }
+    |> castError(PeerReadStateValidationError.self)
+    |> mapToSignal { readState -> Signal<PeerReadState, PeerReadStateValidationError> in
+        guard let readState = readState else {
+            return .complete()
+        }
+        return pushPeerReadState(network: network, postbox: postbox, stateManager: stateManager, peerId: peerId, readState: readState, phantomForce: true)
+    }).start()
 }

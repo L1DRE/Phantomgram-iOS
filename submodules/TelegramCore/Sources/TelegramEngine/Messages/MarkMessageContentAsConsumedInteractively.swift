@@ -16,7 +16,9 @@ func _internal_markMessageContentAsConsumedInteractively(postbox: Postbox, messa
                         updateMessage = true
                         
                         if message.id.peerId.namespace == Namespaces.Peer.SecretChat {
-                            if let state = transaction.getPeerChatState(message.id.peerId) as? SecretChatState {
+                            if !PhantomSettings.sendContentConsumed {
+                                // Phantom: the self-destruct timers below still run.
+                            } else if let state = transaction.getPeerChatState(message.id.peerId) as? SecretChatState {
                                 var layer: SecretChatLayer?
                                 switch state.embeddedState {
                                     case .terminated, .handshake:
