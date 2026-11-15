@@ -1,7 +1,7 @@
 name: Build Phantomgram
 
 # Two modes:
-# - check:   every push. A debug build that only answers "does it compile?" (faster, no .ipa).
+# - check:   every push. A debug build; its .ipa installs too (slower app, fine for testing).
 # - release: run by hand (Actions → Build Phantomgram → Run workflow). Builds the .ipa files.
 on:
   push:
@@ -145,12 +145,12 @@ jobs:
           key: bazel-${{ env.MODE }}-${{ github.run_id }}
 
       - name: Package
-        if: env.MODE == 'release'
         working-directory: ${{ env.SOURCE_DIR }}
         run: |
           set -x
           mkdir -p out
-          IPA=$(ls bazel-out/applebin_ios-ios_arm*-opt-ST-*/bin/Telegram/Telegram.ipa | head -1)
+          # Newest .ipa: debug (check) and release builds land in different bazel-out folders.
+          IPA=$(ls -t bazel-out/applebin_ios-ios_arm*/bin/Telegram/Telegram.ipa | head -1)
           cp "$IPA" out/Phantomgram-full.ipa
 
           # Sideload build: a free Apple ID allows only a few app IDs a week, and every
@@ -162,10 +162,9 @@ jobs:
           ls -lh out
 
       - name: Upload .ipa
-        if: env.MODE == 'release'
         uses: actions/upload-artifact@v4
         with:
-          name: Phantomgram-${{ env.APP_VERSION }}-${{ env.BUILD_NUMBER }}
+          name: Phantomgram-${{ env.MODE }}-${{ env.APP_VERSION }}-${{ env.BUILD_NUMBER }}
           path: ${{ env.SOURCE_DIR }}/out/*.ipa
           retention-days: 30
 
