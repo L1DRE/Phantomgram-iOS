@@ -321,19 +321,18 @@ filegroup(
     ]),
 )
 
+# Phantomgram's own icons (drawn for this fork); Telegram's are no longer shipped.
 alternate_icon_folders = [
-    "BlackIcon",
-    "BlackClassicIcon",
-    "BlackFilledIcon",
-    "BlueIcon",
-    "BlueClassicIcon",
-    "BlueFilledIcon",
-    "WhiteFilledIcon",
-    "New1",
-    "New2",
-    "Premium",
-    "PremiumBlack",
-    "PremiumTurbo",
+    "PhantomIcon",
+    "PhantomDark",
+    "PhantomSteel",
+    "PhantomNeon",
+    "PhantomOcean",
+    "PhantomInferno",
+    "PhantomMint",
+    "PhantomRed",
+    "PhantomGold",
+    "PhantomViolet",
 ]
 
 composer_icon_folders = ["Telegram"]

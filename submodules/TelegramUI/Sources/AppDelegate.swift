@@ -994,23 +994,19 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             self.window?.rootViewController?.dismiss(animated: true, completion: nil)
         }, getAvailableAlternateIcons: {
             if #available(iOS 10.3, *) {
-                var icons = [
-                    PresentationAppIcon(name: "BlueIcon", imageName: "BlueIcon", isDefault: buildConfig.isAppStoreBuild),
-                    PresentationAppIcon(name: "New2", imageName: "New2"),
-                    PresentationAppIcon(name: "New1", imageName: "New1"),
-                    PresentationAppIcon(name: "BlackIcon", imageName: "BlackIcon"),
-                    PresentationAppIcon(name: "BlueClassicIcon", imageName: "BlueClassicIcon"),
-                    PresentationAppIcon(name: "BlackClassicIcon", imageName: "BlackClassicIcon"),
-                    PresentationAppIcon(name: "BlueFilledIcon", imageName: "BlueFilledIcon"),
-                    PresentationAppIcon(name: "BlackFilledIcon", imageName: "BlackFilledIcon")
+                // Phantom: the fork's own icons; PhantomIcon matches the primary icon. None needs Premium.
+                let icons = [
+                    PresentationAppIcon(name: "PhantomIcon", imageName: "PhantomIcon", isDefault: true),
+                    PresentationAppIcon(name: "PhantomDark", imageName: "PhantomDark"),
+                    PresentationAppIcon(name: "PhantomSteel", imageName: "PhantomSteel"),
+                    PresentationAppIcon(name: "PhantomNeon", imageName: "PhantomNeon"),
+                    PresentationAppIcon(name: "PhantomOcean", imageName: "PhantomOcean"),
+                    PresentationAppIcon(name: "PhantomInferno", imageName: "PhantomInferno"),
+                    PresentationAppIcon(name: "PhantomMint", imageName: "PhantomMint"),
+                    PresentationAppIcon(name: "PhantomRed", imageName: "PhantomRed"),
+                    PresentationAppIcon(name: "PhantomGold", imageName: "PhantomGold"),
+                    PresentationAppIcon(name: "PhantomViolet", imageName: "PhantomViolet")
                 ]
-                if buildConfig.isInternalBuild {
-                    icons.append(PresentationAppIcon(name: "WhiteFilledIcon", imageName: "WhiteFilledIcon"))
-                }
-                
-                icons.append(PresentationAppIcon(name: "Premium", imageName: "Premium", isPremium: true))
-                icons.append(PresentationAppIcon(name: "PremiumTurbo", imageName: "PremiumTurbo", isPremium: true))
-                icons.append(PresentationAppIcon(name: "PremiumBlack", imageName: "PremiumBlack", isPremium: true))
                 
                 return icons
             } else {

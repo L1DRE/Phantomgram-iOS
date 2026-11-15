@@ -402,6 +402,8 @@ class ThemeSettingsAppIconItemNode: ListViewItemNode, ItemListItemNode {
                                     name = item.strings.Appearance_AppIconBlack
                                 case "PremiumTurbo":
                                     name = item.strings.Appearance_AppIconTurbo
+                                case "PhantomIcon", "PhantomDark", "PhantomSteel", "PhantomNeon", "PhantomOcean", "PhantomInferno", "PhantomMint", "PhantomRed", "PhantomGold", "PhantomViolet":
+                                    name = phantomIconTitle(icon.name, languageCode: item.strings.primaryComponent.languageCode)
                                 default:
                                     name = icon.name
                             }
@@ -429,3 +431,21 @@ class ThemeSettingsAppIconItemNode: ListViewItemNode, ItemListItemNode {
     }
 }
 
+
+/// Phantom: names of the fork's icons in the picker.
+private func phantomIconTitle(_ name: String, languageCode: String) -> String {
+    let ru = languageCode.hasPrefix("ru")
+    switch name {
+    case "PhantomIcon": return ru ? "Злодей" : "Villain"
+    case "PhantomDark": return ru ? "Ночь" : "Night"
+    case "PhantomSteel": return ru ? "Сталь" : "Steel"
+    case "PhantomNeon": return ru ? "Неон" : "Neon"
+    case "PhantomOcean": return ru ? "Океан" : "Ocean"
+    case "PhantomInferno": return ru ? "Инферно" : "Inferno"
+    case "PhantomMint": return ru ? "Яд" : "Venom"
+    case "PhantomRed": return ru ? "Кровь" : "Blood"
+    case "PhantomGold": return ru ? "Мафия" : "Mafia"
+    case "PhantomViolet": return ru ? "Фиолет" : "Violet"
+    default: return name
+    }
+}
