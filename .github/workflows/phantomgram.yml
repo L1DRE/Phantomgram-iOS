@@ -149,8 +149,9 @@ jobs:
         run: |
           set -x
           mkdir -p out
-          # Newest .ipa: debug (check) and release builds land in different bazel-out folders.
-          IPA=$(ls -t bazel-out/applebin_ios-ios_arm*/bin/Telegram/Telegram.ipa | head -1)
+          # bazel-bin points at the configuration of the last build (Make.py reads it from there too).
+          IPA=bazel-bin/Telegram/Telegram.ipa
+          ls -lL "$IPA"
           cp "$IPA" out/Phantomgram-full.ipa
 
           # Sideload build: a free Apple ID allows only a few app IDs a week, and every
