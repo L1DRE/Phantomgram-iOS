@@ -1,13 +1,29 @@
 name: Build Phantomgram
 
+# Two modes:
+# - check:   every push. A debug build that only answers "does it compile?" (faster, no .ipa).
+# - release: run by hand (Actions → Build Phantomgram → Run workflow). Builds the .ipa files.
 on:
   push:
     branches: [ phantomgram ]
     paths-ignore: [ '**.md' ]
   workflow_dispatch:
+    inputs:
+      mode:
+        description: 'check = fast compile check, release = build the .ipa'
+        type: choice
+        options: [ release, check ]
+        default: release
+
+env:
+  MODE: ${{ inputs.mode || 'check' }}
+  SOURCE_DIR: /Users/Shared/telegram-ios
+  CACHE_DIR: /Users/Shared/bazel-cache
+  # GitHub keeps up to 10 GB of caches per repository; leave room for both modes.
+  CACHE_LIMIT_GB: '4.5'
 
 concurrency:
-  group: phantomgram-build
+  group: phantomgram-${{ inputs.mode || 'check' }}
   cancel-in-progress: true
 
 jobs:
@@ -25,49 +41,102 @@ jobs:
       - name: Select Xcode
         run: |
           XCODE_VERSION=$(python3 -c 'import json;print(json.load(open("versions.json"))["xcode"])')
+          echo "XCODE_VERSION=$XCODE_VERSION" >> "$GITHUB_ENV"
           sudo xcode-select -s /Applications/Xcode_$XCODE_VERSION.app/Contents/Developer
           xcodebuild -version
+          if [ "$MODE" = release ]; then
+            echo "CONFIGURATION=release_arm64" >> "$GITHUB_ENV"
+          else
+            echo "CONFIGURATION=debug_arm64" >> "$GITHUB_ENV"
+          fi
 
       - name: Free disk space
         run: |
           # Older Xcodes and simulators take tens of GB the build needs.
           for x in /Applications/Xcode_*.app; do
-            case "$x" in *"$(python3 -c 'import json;print(json.load(open("versions.json"))["xcode"])')"*) ;; *) sudo rm -rf "$x" & ;; esac
+            case "$x" in *"$XCODE_VERSION"*) ;; *) sudo rm -rf "$x" & ;; esac
           done
           wait
           df -h /
 
       - name: Move sources to a stable path
         run: |
-          # Source paths end up in the binary, so keep them identical between builds.
+          # Source paths end up in compiler outputs: identical paths let the cache hit between runs.
           sudo mkdir -p /Users/Shared
           sudo chown "$(whoami)" /Users/Shared
-          cp -R "$GITHUB_WORKSPACE" /Users/Shared/telegram-ios
+          cp -R "$GITHUB_WORKSPACE" "$SOURCE_DIR"
+
+      - name: Restore Bazel cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.CACHE_DIR }}
+          key: bazel-${{ env.MODE }}-${{ github.run_id }}
+          restore-keys: bazel-${{ env.MODE }}-
 
       - name: Build
-        working-directory: /Users/Shared/telegram-ios
+        working-directory: ${{ env.SOURCE_DIR }}
         run: |
           set -x
           APP_VERSION=$(python3 -c 'import json;print(json.load(open("versions.json"))["app"])')
           BUILD_NUMBER=$(( $(cat build_number_offset) + ${{ github.run_number }} ))
           echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
           echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
+          du -sh "$CACHE_DIR" 2>/dev/null || echo "no cache yet"
 
           python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
 
           # The runner has 3 cores and 7 GB of RAM: keep Bazel from running out of memory.
           python3 -u build-system/Make/Make.py \
             --bazelUserRoot=/private/var/tmp/_bazel_runner \
+            --cacheDir="$CACHE_DIR" \
             --bazelArguments="--local_resources=memory=HOST_RAM*.7 --jobs=3" \
             build \
             --continueOnError \
             --configurationPath=build-system/appstore-configuration.json \
             --codesigningInformationPath=build-system/fake-codesigning \
-            --configuration=release_arm64 \
+            --configuration="$CONFIGURATION" \
             --buildNumber="$BUILD_NUMBER"
 
+      - name: Trim Bazel cache
+        if: always()
+        run: |
+          # Drop the least recently used entries (Bazel touches an entry on every hit) so the
+          # cache fits GitHub's storage. Runs after failures too: a half-finished build still
+          # leaves useful results for the next run.
+          [ -d "$CACHE_DIR" ] || exit 0
+          python3 - <<'EOF'
+          import os
+          root = os.environ["CACHE_DIR"]
+          limit = int(float(os.environ["CACHE_LIMIT_GB"]) * 1024 ** 3)
+          files = []
+          for dirpath, _, names in os.walk(root):
+              for name in names:
+                  path = os.path.join(dirpath, name)
+                  try:
+                      st = os.stat(path)
+                  except OSError:
+                      continue
+                  files.append((st.st_mtime, st.st_size, path))
+          total = sum(f[1] for f in files)
+          print(f"cache before: {total / 1024 ** 3:.2f} GB in {len(files)} files")
+          for mtime, size, path in sorted(files):
+              if total <= limit:
+                  break
+              os.remove(path)
+              total -= size
+          print(f"cache after: {total / 1024 ** 3:.2f} GB")
+          EOF
+
+      - name: Save Bazel cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.CACHE_DIR }}
+          key: bazel-${{ env.MODE }}-${{ github.run_id }}
+
       - name: Package
-        working-directory: /Users/Shared/telegram-ios
+        if: env.MODE == 'release'
+        working-directory: ${{ env.SOURCE_DIR }}
         run: |
           set -x
           mkdir -p out
@@ -82,16 +151,18 @@ jobs:
           (cd "$STAGE" && zip -qry "$OLDPWD/out/Phantomgram.ipa" Payload)
           ls -lh out
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload .ipa
+        if: env.MODE == 'release'
+        uses: actions/upload-artifact@v4
         with:
           name: Phantomgram-${{ env.APP_VERSION }}-${{ env.BUILD_NUMBER }}
-          path: /Users/Shared/telegram-ios/out/*.ipa
+          path: ${{ env.SOURCE_DIR }}/out/*.ipa
           retention-days: 30
 
       - name: Upload build log on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: bazel-logs
+          name: bazel-logs-${{ env.MODE }}
           path: /private/var/tmp/_bazel_runner/**/command.log
           if-no-files-found: ignore
