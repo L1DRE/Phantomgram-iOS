@@ -562,8 +562,12 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         try! PasscodeEnvironment.shared.configure(PasscodeConfiguration(appGroupIdentifier: appGroupName, processRole: .mainApp, biometricKeychainService: walletBiometricKeychainService), privateAccessGroup: {
             BuildConfig.keychainAccessGroup(baseAppBundleId: baseAppBundleId)
         })
-        let maybeAppGroupUrl = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupName)
-        
+        // Phantom: a build sideloaded with a free Apple ID gets a new bundle id and usually no app
+        // group, so the shared container is missing and launch used to stop at "Error 2" (a black
+        // screen). Fall back to the app's own container; the extensions that would share the group
+        // are not installed in such a build anyway.
+        let maybeAppGroupUrl = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupName) ?? phantomPrivateContainerUrl()
+
         let buildConfig = BuildConfig(baseAppBundleId: baseAppBundleId)
         self.buildConfig = buildConfig
         let signatureDict = BuildConfigExtra.signatureDict()
@@ -3492,4 +3496,17 @@ final class UpdateSettings: Codable, Equatable {
     static func ==(lhs: UpdateSettings, rhs: UpdateSettings) -> Bool {
         return lhs.url == rhs.url
     }
+}
+
+/// Phantom: stands in for the app group container when the signature carries no app group.
+private func phantomPrivateContainerUrl() -> URL? {
+    guard let url = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appendingPathComponent("phantom-container", isDirectory: true) else {
+        return nil
+    }
+    do {
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+    } catch {
+        return nil
+    }
+    return url
 }
