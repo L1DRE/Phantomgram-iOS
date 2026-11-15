@@ -1347,6 +1347,37 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
             }
         }
         
+        // Phantom: earlier versions of an edited message, saved on this device.
+        let phantomEditHistory = message.phantomEditHistory
+        if !phantomEditHistory.isEmpty {
+            let isRussian = chatPresentationInterfaceState.strings.primaryComponent.languageCode.hasPrefix("ru")
+            let historyTitle = isRussian ? "История правок" : "Edit History"
+            actions.append(.action(ContextMenuActionItem(text: historyTitle, icon: { theme in
+                return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Edit"), color: theme.actionSheet.primaryTextColor)
+            }, action: { c, _ in
+                c?.dismiss(completion: {
+                    let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+                    let formatter = DateFormatter()
+                    formatter.dateStyle = .short
+                    formatter.timeStyle = .short
+                    var lines: [String] = []
+                    for entry in phantomEditHistory {
+                        let date = formatter.string(from: Date(timeIntervalSince1970: Double(entry.date)))
+                        lines.append("\(date)\n\(entry.text)")
+                    }
+                    lines.append((isRussian ? "Сейчас" : "Now") + "\n" + message.text)
+                    controllerInteraction.presentController(textAlertController(
+                        context: context,
+                        title: historyTitle,
+                        text: lines.joined(separator: "\n\n"),
+                        actions: [
+                            TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})
+                        ]
+                    ), nil)
+                })
+            })))
+        }
+
         let isCopyProtected = chatPresentationInterfaceState.copyProtectionEnabled || message.isCopyProtected()
         if !messageText.isEmpty || richMessageMarkdown != nil || (resourceAvailable && isImage) || diceEmoji != nil {
             if !isExpired {

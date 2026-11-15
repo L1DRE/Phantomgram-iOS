@@ -250,6 +250,11 @@ public func stringForMessageTimestampStatus(
             dateText = "\(authorTitle), \(dateText)"
         }
     }
-    
+
+    // Phantom: a message the server deleted but this device kept.
+    if message.phantomDeletedDate != nil {
+        dateText = "🗑 \(dateText)"
+    }
+
     return dateText
 }

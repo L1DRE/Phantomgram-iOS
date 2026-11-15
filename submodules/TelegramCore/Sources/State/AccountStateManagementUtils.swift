@@ -4596,6 +4596,13 @@ func replayFinalState(
                 upsertEphemeralReplacement(transaction: transaction, anchorMessageId: anchorMessageId, message: message)
             case let .DeleteEphemeralMessages(peerId, ids):
                 deleteEphemeralMessages(transaction: transaction, peerId: peerId, ids: ids)
+            case let .DeleteMessagesWithGlobalIds(ids) where PhantomSettings.saveDeletedMessages:
+                // Phantom: keep what we can, remove the rest by message id.
+                let remainingIds = phantomKeepDeletedMessages(transaction: transaction, ids: transaction.messageIdsForGlobalIds(ids))
+                if !remainingIds.isEmpty {
+                    _internal_deleteMessages(transaction: transaction, mediaBox: mediaBox, ids: remainingIds)
+                    deletedMessageIds.append(contentsOf: remainingIds.map { .messageId($0) })
+                }
             case let .DeleteMessagesWithGlobalIds(ids):
                 var resourceIds: [MediaResourceId] = []
                 transaction.deleteMessagesWithGlobalIds(ids, forEachMedia: { media in
@@ -4605,7 +4612,9 @@ func replayFinalState(
                     let _ = mediaBox.removeCachedResources(Array(Set(resourceIds)), force: true).start()
                 }
                 deletedMessageIds.append(contentsOf: ids.map { .global($0) })
-            case let .DeleteMessages(ids):
+            case let .DeleteMessages(allIds):
+                // Phantom: messages kept as "deleted" are left out of the removal.
+                let ids = phantomKeepDeletedMessages(transaction: transaction, ids: allIds)
                 _internal_deleteMessages(transaction: transaction, mediaBox: mediaBox, ids: ids, manualAddMessageThreadStatsDifference: { id, add, remove in
                     addMessageThreadStatsDifference(threadKey: id, remove: remove, addedMessagePeer: nil, addedMessageId: nil, isOutgoing: false)
                 })
@@ -4689,6 +4698,9 @@ func replayFinalState(
                         updatedMedia = previousMessage.media
                     }
                     
+                    // Phantom: keep the "deleted" mark and, when enabled, the previous text.
+                    updatedAttributes = phantomAttributesPreservingEditHistory(previous: previousMessage, updatedText: message.text, updatedAttributes: updatedAttributes)
+
                     return .update(message.withUpdatedLocalTags(updatedLocalTags).withUpdatedFlags(updatedFlags).withUpdatedAttributes(updatedAttributes).withUpdatedMedia(updatedMedia))
                 })
                 if let generatedEvent = generatedEvent {

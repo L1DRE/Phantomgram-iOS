@@ -84,7 +84,7 @@ private struct PhantomStrings {
             self.historyHeader = "ИСТОРИЯ СООБЩЕНИЙ"
             self.saveDeleted = "Сохранять удалённые сообщения"
             self.saveEdits = "Сохранять историю правок"
-            self.historyFooter = "Сообщения сохраняются только на этом устройстве и только пока чат был загружен."
+            self.historyFooter = "Удалённые сообщения помечаются значком 🗑 у времени. Старые версии текста — в меню сообщения, пункт «История правок». Всё хранится только на этом устройстве и только для чатов, которые были загружены. Самоуничтожающиеся сообщения не сохраняются."
         } else {
             self.title = "Phantomgram"
             self.ghostHeader = "GHOST MODE"
@@ -97,7 +97,7 @@ private struct PhantomStrings {
             self.historyHeader = "MESSAGE HISTORY"
             self.saveDeleted = "Save Deleted Messages"
             self.saveEdits = "Save Edit History"
-            self.historyFooter = "Messages are kept only on this device, and only for chats that were loaded."
+            self.historyFooter = "Deleted messages show 🗑 next to the time. Earlier versions of a text are in the message menu under Edit History. Everything stays on this device, only for chats that were loaded. Self-destructing messages are not kept."
         }
     }
 }
