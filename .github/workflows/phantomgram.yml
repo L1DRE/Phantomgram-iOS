@@ -59,6 +59,16 @@ jobs:
           wait
           df -h /
 
+      - name: Accept expired fake provisioning profiles
+        run: |
+          # The fake profiles in build-system/fake-codesigning expired on 2026-10-30 (upstream's
+          # too). They only stand in for real signing: Sideloadly re-signs the .ipa with the
+          # user's own Apple ID, so skip rules_apple's expiry check instead of failing on it.
+          f=build-system/bazel-rules/rules_apple/tools/plisttool/plisttool.py
+          grep -q "if expire and expire < datetime.datetime.now():" "$f"
+          sed -i '' 's/if expire and expire < datetime.datetime.now():/if False and expire and expire < datetime.datetime.now():/' "$f"
+          grep -n "if False and expire" "$f"
+
       - name: Move sources to a stable path
         run: |
           # Source paths end up in compiler outputs: identical paths let the cache hit between runs.
