@@ -477,6 +477,11 @@ private class ReplyThreadHistoryContextImpl {
                 }
             }
 
+            // Phantom: the thread counts as read locally (above); skip the server receipt.
+            if !PhantomSettings.sendReadMessages {
+                return
+            }
+
             if let subPeerId {
                 let signal = strongSelf.account.network.request(Api.functions.messages.readSavedHistory(parentPeer: inputPeer, peer: subPeerId, maxId: messageIndex.id.id))
                 |> `catch` { _ -> Signal<Api.Bool, NoError> in

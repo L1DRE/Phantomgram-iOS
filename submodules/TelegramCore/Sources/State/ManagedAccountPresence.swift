@@ -44,7 +44,8 @@ private final class AccountPresenceManagerImpl {
     
     private func updatePresence(_ isOnline: Bool) {
         let request: Signal<Api.Bool, MTRpcError>
-        if isOnline {
+        // Phantom: with online packets off, keep reporting the account as offline.
+        if isOnline && PhantomSettings.sendOnlinePackets {
             let timer = SignalKitTimer(timeout: 30.0, repeat: false, completion: { [weak self] in
                 guard let strongSelf = self else {
                     return

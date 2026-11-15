@@ -1,0 +1,97 @@
+name: Build Phantomgram
+
+on:
+  push:
+    branches: [ phantomgram ]
+    paths-ignore: [ '**.md' ]
+  workflow_dispatch:
+
+concurrency:
+  group: phantomgram-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # Xcode 26.6 matches versions.json on this base; GitHub has no macOS 27 runners.
+    runs-on: macos-26
+    timeout-minutes: 360
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Select Xcode
+        run: |
+          XCODE_VERSION=$(python3 -c 'import json;print(json.load(open("versions.json"))["xcode"])')
+          sudo xcode-select -s /Applications/Xcode_$XCODE_VERSION.app/Contents/Developer
+          xcodebuild -version
+
+      - name: Free disk space
+        run: |
+          # Older Xcodes and simulators take tens of GB the build needs.
+          for x in /Applications/Xcode_*.app; do
+            case "$x" in *"$(python3 -c 'import json;print(json.load(open("versions.json"))["xcode"])')"*) ;; *) sudo rm -rf "$x" & ;; esac
+          done
+          wait
+          df -h /
+
+      - name: Move sources to a stable path
+        run: |
+          # Source paths end up in the binary, so keep them identical between builds.
+          sudo mkdir -p /Users/Shared
+          sudo chown "$(whoami)" /Users/Shared
+          cp -R "$GITHUB_WORKSPACE" /Users/Shared/telegram-ios
+
+      - name: Build
+        working-directory: /Users/Shared/telegram-ios
+        run: |
+          set -x
+          APP_VERSION=$(python3 -c 'import json;print(json.load(open("versions.json"))["app"])')
+          BUILD_NUMBER=$(( $(cat build_number_offset) + ${{ github.run_number }} ))
+          echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
+
+          python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
+
+          # The runner has 3 cores and 7 GB of RAM: keep Bazel from running out of memory.
+          python3 -u build-system/Make/Make.py \
+            --bazelUserRoot=/private/var/tmp/_bazel_runner \
+            --bazelArguments="--local_resources=memory=HOST_RAM*.7 --jobs=3" \
+            build \
+            --continueOnError \
+            --configurationPath=build-system/appstore-configuration.json \
+            --codesigningInformationPath=build-system/fake-codesigning \
+            --configuration=release_arm64 \
+            --buildNumber="$BUILD_NUMBER"
+
+      - name: Package
+        working-directory: /Users/Shared/telegram-ios
+        run: |
+          set -x
+          mkdir -p out
+          IPA=$(ls bazel-out/applebin_ios-ios_arm*-opt-ST-*/bin/Telegram/Telegram.ipa | head -1)
+          cp "$IPA" out/Phantomgram-full.ipa
+
+          # Sideload build: a free Apple ID allows only a few app IDs a week, and every
+          # extension (share, widgets, notifications, Siri, watch) needs one of its own.
+          STAGE=$(mktemp -d)
+          unzip -q "$IPA" -d "$STAGE"
+          rm -rf "$STAGE"/Payload/*.app/PlugIns "$STAGE"/Payload/*.app/Watch "$STAGE"/Payload/*.app/Extensions
+          (cd "$STAGE" && zip -qry "$OLDPWD/out/Phantomgram.ipa" Payload)
+          ls -lh out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Phantomgram-${{ env.APP_VERSION }}-${{ env.BUILD_NUMBER }}
+          path: /Users/Shared/telegram-ios/out/*.ipa
+          retention-days: 30
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bazel-logs
+          path: /private/var/tmp/_bazel_runner/**/command.log
+          if-no-files-found: ignore

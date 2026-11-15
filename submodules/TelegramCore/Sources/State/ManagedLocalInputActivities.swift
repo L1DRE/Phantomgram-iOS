@@ -175,6 +175,11 @@ private func requestActivity(postbox: Postbox, network: Network, accountPeerId: 
                 }
             }
             
+            // Phantom: do not tell anyone we are typing, recording or choosing a sticker.
+            if !PhantomSettings.sendTyping {
+                return .complete()
+            }
+
             if let inputPeer = apiInputPeer(peer) {
                 var flags: Int32 = 0
                 let topMessageId = threadId.flatMap { Int32(clamping: $0) }
