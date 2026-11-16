@@ -9,7 +9,7 @@ public enum PhantomSettings {
     public static let didChangeNotification = Notification.Name("PhantomSettingsDidChange")
 
     /// The mod's own version, shown next to Telegram's in the Phantomgram settings.
-    public static let modVersion = "1.1"
+    public static let modVersion = "1.2"
 
     private enum Key {
         static let sendReadMessages = "phantom.sendReadMessages"

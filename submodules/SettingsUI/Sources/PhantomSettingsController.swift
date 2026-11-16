@@ -70,6 +70,44 @@ private enum PhantomToggle: Int32 {
     }
 }
 
+private let phantomIconPink: [UIColor] = [UIColor(rgb: 0xff7aa8), UIColor(rgb: 0xe0356f)]
+private let phantomIconViolet: [UIColor] = [UIColor(rgb: 0xb07cff), UIColor(rgb: 0x7a3df0)]
+private let phantomIconIndigo: [UIColor] = [UIColor(rgb: 0x7d8cff), UIColor(rgb: 0x4a55d6)]
+private let phantomIconGraphite: [UIColor] = [UIColor(rgb: 0x5a5a66), UIColor(rgb: 0x2c2c34)]
+
+private func phantomIcon(_ name: String, _ colors: [UIColor]) -> UIImage? {
+    return renderSettingsIcon(name: "Item List/Icons/\(name)", backgroundColors: colors)
+}
+
+/// Rendered once: every icon is a gradient fill, a mask and a backdrop.
+private let phantomToggleIcons: [PhantomToggle: UIImage] = {
+    var icons: [PhantomToggle: UIImage] = [:]
+    icons[.ghostMode] = PresentationResourcesSettings.phantom
+    icons[.sendRead] = phantomIcon("View", phantomIconPink)
+    icons[.sendOnline] = phantomIcon("Wifi", phantomIconPink)
+    icons[.sendTyping] = phantomIcon("Chat", phantomIconPink)
+    icons[.sendStories] = phantomIcon("Stories", phantomIconPink)
+    icons[.sendConsumed] = phantomIcon("Notifications", phantomIconPink)
+    icons[.markReadOnSend] = phantomIcon("Messages", phantomIconPink)
+    icons[.saveDeleted] = phantomIcon("Delete", phantomIconViolet)
+    icons[.saveEdits] = phantomIcon("File", phantomIconViolet)
+    icons[.keepPhotos] = phantomIcon("Timer", phantomIconViolet)
+    icons[.showSeconds] = phantomIcon("Clock", phantomIconIndigo)
+    icons[.hideAds] = phantomIcon("Block", phantomIconIndigo)
+    icons[.showPeerId] = phantomIcon("Profile", phantomIconIndigo)
+    icons[.hideStories] = phantomIcon("Stories", phantomIconGraphite)
+    icons[.hidePhone] = phantomIcon("ChangePhone", phantomIconGraphite)
+    icons[.compactMenu] = phantomIcon("Settings", phantomIconGraphite)
+    return icons
+}()
+
+/// The theme of the Phantomgram screen: the list's own, with the switches in the accent of the logo.
+private func phantomSettingsTheme(_ theme: PresentationTheme) -> PresentationTheme {
+    let theme = theme.withModalBlocksBackground()
+    let list = theme.list.withUpdated(itemSwitchColors: theme.list.itemSwitchColors.withUpdated(contentColor: phantomAccentColor))
+    return PresentationTheme(name: theme.name, index: theme.index, referenceTheme: theme.referenceTheme, overallDarkAppearance: theme.overallDarkAppearance, intro: theme.intro, passcode: theme.passcode, rootController: theme.rootController, list: list, chatList: theme.chatList, chat: theme.chat, actionSheet: theme.actionSheet, contextMenu: theme.contextMenu, inAppNotification: theme.inAppNotification, chart: theme.chart, preview: theme.preview)
+}
+
 private final class PhantomSettingsControllerArguments {
     let update: (PhantomToggle, Bool) -> Void
 
@@ -111,6 +149,7 @@ private struct PhantomStrings {
 
     var title: String { return "Phantomgram" }
     func versions(mod: String, telegram: String) -> String { return t("Версия мода \(mod)\nTelegram \(telegram)", "Mod version \(mod)\nTelegram \(telegram)") }
+    func ghostStatus(active: Bool) -> String { return active ? t("Призрак активен", "Ghost mode is on") : t("Призрак выключен", "Ghost mode is off") }
     var appearanceHeader: String { return t("ОФОРМЛЕНИЕ", "APPEARANCE") }
     var appearanceFooter: String { return t("Компактное меню убирает из настроек Premium, звёзды, TON, Business и подарки.", "The compact menu removes Premium, Stars, TON, Business and gifts from Settings.") }
     var ghostHeader: String { return t("РЕЖИМ ПРИЗРАКА", "GHOST MODE") }
@@ -153,7 +192,7 @@ private enum PhantomSettingsSection: Int32 {
 }
 
 private enum PhantomSettingsEntry: ItemListNodeEntry {
-    case logo(Int32, String, String)
+    case logo(Int32, String, String, String, Bool)
     case header(PhantomSettingsSection, Int32, String)
     case toggle(PhantomSettingsSection, Int32, PhantomToggle, String, Bool)
     case footer(PhantomSettingsSection, Int32, String)
@@ -169,7 +208,7 @@ private enum PhantomSettingsEntry: ItemListNodeEntry {
 
     var stableId: Int32 {
         switch self {
-        case let .logo(id, _, _), let .header(_, id, _), let .toggle(_, id, _, _, _), let .footer(_, id, _):
+        case let .logo(id, _, _, _, _), let .header(_, id, _), let .toggle(_, id, _, _, _), let .footer(_, id, _):
             return id
         }
     }
@@ -181,14 +220,14 @@ private enum PhantomSettingsEntry: ItemListNodeEntry {
     func item(presentationData: ItemListPresentationData, arguments: Any) -> ListViewItem {
         let arguments = arguments as! PhantomSettingsControllerArguments
         switch self {
-        case let .logo(_, title, subtitle):
-            return PhantomSettingsHeaderItem(theme: presentationData.theme, title: title, subtitle: subtitle, sectionId: self.section)
+        case let .logo(_, title, subtitle, status, isStatusActive):
+            return PhantomSettingsHeaderItem(theme: presentationData.theme, title: title, subtitle: subtitle, status: status, isStatusActive: isStatusActive, sectionId: self.section)
         case let .header(_, _, text):
             return ItemListSectionHeaderItem(presentationData: presentationData, text: text, sectionId: self.section)
         case let .footer(_, _, text):
             return ItemListTextItem(presentationData: presentationData, text: .plain(text), sectionId: self.section)
         case let .toggle(_, _, toggle, title, value):
-            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: title, value: value, sectionId: self.section, style: .blocks, updated: { value in
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, icon: phantomToggleIcons[toggle], title: title, value: value, sectionId: self.section, style: .blocks, updated: { value in
                 arguments.update(toggle, value)
             })
         }
@@ -211,7 +250,8 @@ private func phantomSettingsEntries(strings: PhantomStrings, state: PhantomSetti
         nextId += 1
     }
 
-    entries.append(.logo(nextId, strings.title, strings.versions(mod: PhantomSettings.modVersion, telegram: phantomTelegramVersion())))
+    let isGhostActive = state.value(.ghostMode)
+    entries.append(.logo(nextId, strings.title, strings.versions(mod: PhantomSettings.modVersion, telegram: phantomTelegramVersion()), strings.ghostStatus(active: isGhostActive), isGhostActive))
     nextId += 1
 
     header(.ghost, strings.ghostHeader)
@@ -267,7 +307,7 @@ public func phantomSettingsController(context: AccountContext) -> ViewController
     )
     |> map { presentationData, state -> (ItemListControllerState, (ItemListNodeState, Any)) in
         var presentationData = presentationData
-        presentationData = presentationData.withUpdated(theme: presentationData.theme.withModalBlocksBackground())
+        presentationData = presentationData.withUpdated(theme: phantomSettingsTheme(presentationData.theme))
 
         let strings = PhantomStrings(languageCode: presentationData.strings.primaryComponent.languageCode)
 
