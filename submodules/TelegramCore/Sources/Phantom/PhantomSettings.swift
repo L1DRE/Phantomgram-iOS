@@ -9,7 +9,7 @@ public enum PhantomSettings {
     public static let didChangeNotification = Notification.Name("PhantomSettingsDidChange")
 
     /// The mod's own version, shown next to Telegram's in the Phantomgram settings.
-    public static let modVersion = "1.3"
+    public static let modVersion = "1.4"
 
     private enum Key {
         static let sendReadMessages = "phantom.sendReadMessages"
@@ -34,6 +34,8 @@ public enum PhantomSettings {
         static let hideContactsTab = "phantom.hideContactsTab"
         static let hideGiftButton = "phantom.hideGiftButton"
         static let ghostExceptions = "phantom.ghostExceptions"
+        static let confirmCalls = "phantom.confirmCalls"
+        static let shakeTogglesGhost = "phantom.shakeTogglesGhost"
     }
 
     private static func bool(_ key: String, default defaultValue: Bool) -> Bool {
@@ -153,6 +155,18 @@ public enum PhantomSettings {
         set { set(newValue, Key.confirmGifs) }
     }
 
+    /// Ask before starting a call.
+    public static var confirmCalls: Bool {
+        get { return bool(Key.confirmCalls, default: false) }
+        set { set(newValue, Key.confirmCalls) }
+    }
+
+    /// Shaking the device turns ghost mode on or off.
+    public static var shakeTogglesGhost: Bool {
+        get { return bool(Key.shakeTogglesGhost, default: false) }
+        set { set(newValue, Key.shakeTogglesGhost) }
+    }
+
     /// Remove tracking parameters (utm_*, fbclid, …) from links in outgoing messages.
     public static var stripLinkTracking: Bool {
         get { return bool(Key.stripLinkTracking, default: false) }
@@ -210,7 +224,8 @@ public enum PhantomSettings {
         Key.sendReadMessages, Key.sendOnlinePackets, Key.sendTyping, Key.saveDeletedMessages, Key.saveEditsHistory,
         Key.sendStoriesSeen, Key.sendContentConsumed, Key.markReadOnSend, Key.showMessageSeconds, Key.hideSponsoredMessages,
         Key.showPeerId, Key.hideStories, Key.hidePhoneNumber, Key.compactSettingsMenu, Key.confirmStickers, Key.confirmGifs,
-        Key.stripLinkTracking, Key.disableLinkPreviews, Key.hideContactsTab, Key.hideGiftButton
+        Key.stripLinkTracking, Key.disableLinkPreviews, Key.hideContactsTab, Key.hideGiftButton,
+        Key.confirmCalls, Key.shakeTogglesGhost
     ]
 
     /// The switches and the ghost exceptions as JSON, to carry over to another install.

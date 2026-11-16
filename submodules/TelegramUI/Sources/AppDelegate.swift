@@ -423,6 +423,23 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         let statusBarHost = ApplicationStatusBarHost(scene: window.windowScene)
         self.statusBarHost = statusBarHost
         self.mainWindow = Window1(hostView: hostView, statusBarHost: statusBarHost)
+        // Phantom: shaking the device switches ghost mode, when enabled in the Phantomgram settings.
+        self.mainWindow.motionShake = { [weak self] in
+            guard let self, PhantomSettings.shakeTogglesGhost else {
+                return
+            }
+            let value = !PhantomSettings.ghostMode
+            PhantomSettings.ghostMode = value
+            UINotificationFeedbackGenerator().notificationOccurred(value ? .success : .warning)
+            let isRussian = Locale.preferredLanguages.first?.hasPrefix("ru") ?? false
+            let text: String
+            if value {
+                text = isRussian ? "Режим призрака включён" : "Ghost Mode is on"
+            } else {
+                text = isRussian ? "Режим призрака выключен" : "Ghost Mode is off"
+            }
+            self.mainWindow.present(OverlayStatusController(theme: defaultDarkPresentationTheme, type: .genericSuccess(text, false)), on: .root)
+        }
         if let traitCollection = window.rootViewController?.traitCollection {
             if #available(iOS 13.0, *) {
                 switch traitCollection.userInterfaceStyle {

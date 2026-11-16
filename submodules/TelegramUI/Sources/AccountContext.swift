@@ -1013,6 +1013,28 @@ public final class AccountContextImpl: AccountContext {
     }
     
     public func requestCall(peerId: PeerId, isVideo: Bool, completion: @escaping () -> Void) {
+        // Phantom: a call can ask first, so a slip of the finger does not ring anyone.
+        if PhantomSettings.confirmCalls {
+            let presentationData = self.sharedContext.currentPresentationData.with { $0 }
+            let isRussian = presentationData.strings.primaryComponent.languageCode.hasPrefix("ru")
+            let text: String
+            if isVideo {
+                text = isRussian ? "Начать видеозвонок?" : "Start a video call?"
+            } else {
+                text = isRussian ? "Позвонить?" : "Start a call?"
+            }
+            self.sharedContext.mainWindow?.present(textAlertController(context: self, title: nil, text: text, actions: [
+                TextAlertAction(type: .genericAction, title: presentationData.strings.Common_Cancel, action: {}),
+                TextAlertAction(type: .defaultAction, title: isRussian ? "Позвонить" : "Call", action: { [weak self] in
+                    self?.phantomRequestCall(peerId: peerId, isVideo: isVideo, completion: completion)
+                })
+            ]), on: .root)
+            return
+        }
+        self.phantomRequestCall(peerId: peerId, isVideo: isVideo, completion: completion)
+    }
+
+    private func phantomRequestCall(peerId: PeerId, isVideo: Bool, completion: @escaping () -> Void) {
         guard let callResult = self.sharedContext.callManager?.requestCall(context: self, peerId: peerId, isVideo: isVideo, endCurrentIfAny: false) else {
             return
         }

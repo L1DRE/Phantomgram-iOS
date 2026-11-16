@@ -33,6 +33,8 @@ private enum PhantomToggle: Int32 {
     case confirmGifs
     case stripTracking
     case noPreviews
+    case confirmCalls
+    case shakeGhost
 
     var value: Bool {
         switch self {
@@ -58,6 +60,8 @@ private enum PhantomToggle: Int32 {
         case .confirmGifs: return PhantomSettings.confirmGifs
         case .stripTracking: return PhantomSettings.stripLinkTracking
         case .noPreviews: return PhantomSettings.disableLinkPreviews
+        case .confirmCalls: return PhantomSettings.confirmCalls
+        case .shakeGhost: return PhantomSettings.shakeTogglesGhost
         }
     }
 
@@ -85,6 +89,8 @@ private enum PhantomToggle: Int32 {
         case .confirmGifs: PhantomSettings.confirmGifs = value
         case .stripTracking: PhantomSettings.stripLinkTracking = value
         case .noPreviews: PhantomSettings.disableLinkPreviews = value
+        case .confirmCalls: PhantomSettings.confirmCalls = value
+        case .shakeGhost: PhantomSettings.shakeTogglesGhost = value
         }
     }
 }
@@ -140,6 +146,8 @@ private let phantomToggleIcons: [PhantomToggle: UIImage] = {
     icons[.confirmGifs] = phantomIcon("Gif", phantomIconPink)
     icons[.stripTracking] = phantomIcon("Link", phantomIconViolet)
     icons[.noPreviews] = phantomIcon("View", phantomIconViolet)
+    icons[.confirmCalls] = phantomIcon("Notifications", phantomIconPink)
+    icons[.shakeGhost] = phantomIcon("Settings", phantomIconPink)
     return icons
 }()
 
@@ -262,6 +270,8 @@ private struct PhantomStrings {
         case .confirmGifs: return t("Спрашивать перед GIF", "Ask Before Sending a GIF")
         case .stripTracking: return t("Очищать ссылки от слежки", "Remove Tracking from Links")
         case .noPreviews: return t("Без превью ссылок", "No Link Previews")
+        case .confirmCalls: return t("Спрашивать перед звонком", "Ask Before Calling")
+        case .shakeGhost: return t("Призрак встряхиванием", "Shake for Ghost Mode")
         }
     }
 }
@@ -375,6 +385,7 @@ private func phantomSettingsEntries(strings: PhantomStrings, state: PhantomSetti
 
     header(.ghost, strings.ghostHeader)
     toggle(.ghost, .ghostMode)
+    toggle(.ghost, .shakeGhost)
     footer(.ghost, strings.ghostFooter)
 
     for item in [PhantomToggle.sendRead, .sendOnline, .sendTyping, .sendStories, .sendConsumed, .markReadOnSend] {
@@ -392,6 +403,7 @@ private func phantomSettingsEntries(strings: PhantomStrings, state: PhantomSetti
     header(.sending, strings.sendingHeader)
     toggle(.sending, .confirmStickers)
     toggle(.sending, .confirmGifs)
+    toggle(.sending, .confirmCalls)
     toggle(.sending, .stripTracking)
     toggle(.sending, .noPreviews)
     footer(.sending, strings.sendingFooter)

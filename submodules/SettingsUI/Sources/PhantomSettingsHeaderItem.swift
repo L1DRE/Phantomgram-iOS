@@ -198,6 +198,11 @@ final class PhantomSettingsHeaderItemNode: ListViewItemNode {
                     self.statusNode.layer.animateAlpha(from: 0.0, to: 1.0, duration: 0.2)
                 }
 
+                if statusChanged {
+                    // The pulse depends on the status: let it be rebuilt.
+                    self.eyesNode.layer.removeAnimation(forKey: "phantomPulse")
+                    self.glowLayer.removeAnimation(forKey: "phantomPulse")
+                }
                 self.startAnimationsIfReady()
             })
         }
@@ -210,15 +215,17 @@ final class PhantomSettingsHeaderItemNode: ListViewItemNode {
     }
 
     private func startAnimationsIfReady() {
-        guard self.item != nil, self.isInHierarchy, !UIAccessibility.isReduceMotionEnabled else {
+        guard let item = self.item, self.isInHierarchy, !UIAccessibility.isReduceMotionEnabled else {
             return
         }
+        // In ghost mode the eyes never go out and the glow is stronger.
+        let isActive = item.isStatusActive
 
         if self.eyesNode.layer.animation(forKey: "phantomPulse") == nil {
             let pulse = CABasicAnimation(keyPath: "opacity")
-            pulse.fromValue = 0.0 as NSNumber
+            pulse.fromValue = (isActive ? 0.55 : 0.0) as NSNumber
             pulse.toValue = 1.0 as NSNumber
-            pulse.duration = 1.6
+            pulse.duration = isActive ? 1.1 : 1.6
             pulse.autoreverses = true
             pulse.repeatCount = .infinity
             pulse.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
@@ -226,9 +233,9 @@ final class PhantomSettingsHeaderItemNode: ListViewItemNode {
             self.eyesNode.layer.add(pulse, forKey: "phantomPulse")
 
             let glow = CABasicAnimation(keyPath: "shadowOpacity")
-            glow.fromValue = 0.15 as NSNumber
-            glow.toValue = 0.55 as NSNumber
-            glow.duration = 1.6
+            glow.fromValue = (isActive ? 0.4 : 0.15) as NSNumber
+            glow.toValue = (isActive ? 0.9 : 0.55) as NSNumber
+            glow.duration = isActive ? 1.1 : 1.6
             glow.autoreverses = true
             glow.repeatCount = .infinity
             glow.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
