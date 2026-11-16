@@ -272,6 +272,7 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
     
     private(set) var validLayout: (ContainerViewLayout, CGFloat)?
     private(set) var data: PeerInfoScreenData?
+    private var phantomSettingsObserver: NSObjectProtocol?
     
     var state = PeerInfoState(
         isEditing: false,
@@ -2588,9 +2589,22 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
                 }
             })
         }
+        
+        if self.isSettings {
+            // Phantom: the Settings list and header read PhantomSettings when laid out.
+            self.phantomSettingsObserver = NotificationCenter.default.addObserver(forName: PhantomSettings.didChangeNotification, object: nil, queue: .main, using: { [weak self] _ in
+                guard let self, let (layout, navigationHeight) = self.validLayout else {
+                    return
+                }
+                self.containerLayoutUpdated(layout: layout, navigationHeight: navigationHeight, transition: .immediate, additive: false)
+            })
+        }
     }
     
     deinit {
+        if let phantomSettingsObserver = self.phantomSettingsObserver {
+            NotificationCenter.default.removeObserver(phantomSettingsObserver)
+        }
         self.dataDisposable?.dispose()
         self.hiddenMediaDisposable?.dispose()
         self.activeActionDisposable.dispose()

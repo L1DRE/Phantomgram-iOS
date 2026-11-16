@@ -22,6 +22,9 @@ private enum PhantomToggle: Int32 {
     case showSeconds
     case hideAds
     case showPeerId
+    case hideStories
+    case hidePhone
+    case compactMenu
 
     var value: Bool {
         switch self {
@@ -37,6 +40,9 @@ private enum PhantomToggle: Int32 {
         case .showSeconds: return PhantomSettings.showMessageSeconds
         case .hideAds: return PhantomSettings.hideSponsoredMessages
         case .showPeerId: return PhantomSettings.showPeerId
+        case .hideStories: return PhantomSettings.hideStories
+        case .hidePhone: return PhantomSettings.hidePhoneNumber
+        case .compactMenu: return PhantomSettings.compactSettingsMenu
         }
     }
 
@@ -54,6 +60,9 @@ private enum PhantomToggle: Int32 {
         case .showSeconds: PhantomSettings.showMessageSeconds = value
         case .hideAds: PhantomSettings.hideSponsoredMessages = value
         case .showPeerId: PhantomSettings.showPeerId = value
+        case .hideStories: PhantomSettings.hideStories = value
+        case .hidePhone: PhantomSettings.hidePhoneNumber = value
+        case .compactMenu: PhantomSettings.compactSettingsMenu = value
         }
     }
 }
@@ -98,6 +107,11 @@ private struct PhantomStrings {
     }
 
     var title: String { return "Phantomgram" }
+    func versions(mod: String, telegram: String) -> String { return t("Версия мода \(mod)
+Telegram \(telegram)", "Mod version \(mod)
+Telegram \(telegram)") }
+    var appearanceHeader: String { return t("ОФОРМЛЕНИЕ", "APPEARANCE") }
+    var appearanceFooter: String { return t("Компактное меню убирает из настроек Premium, звёзды, TON, Business и подарки.", "The compact menu removes Premium, Stars, TON, Business and gifts from Settings.") }
     var ghostHeader: String { return t("РЕЖИМ ПРИЗРАКА", "GHOST MODE") }
     var ghostFooter: String { return t("Другие не увидят, что вы в сети, печатаете, прочитали сообщения, посмотрели истории или прослушали голосовые.", "Others won't see that you are online, typing, or have read their messages, watched their stories or played their voice messages.") }
     var detailsFooter: String { return t("Прочитанное остаётся прочитанным только на этом устройстве. «Прочитать при отправке»: когда вы пишете в чат, он отмечается прочитанным, как в обычном Telegram.", "What you read stays read only on this device. Mark Read When Sending: writing in a chat marks it as read, as the official app would.") }
@@ -120,24 +134,32 @@ private struct PhantomStrings {
         case .showSeconds: return t("Секунды во времени сообщений", "Seconds in Message Time")
         case .hideAds: return t("Скрыть рекламу в каналах", "Hide Sponsored Messages")
         case .showPeerId: return t("ID и дата регистрации в профиле", "ID and Sign-Up Date in Profiles")
+        case .hideStories: return t("Скрыть истории", "Hide Stories")
+        case .hidePhone: return t("Скрыть номер в настройках", "Hide Phone Number in Settings")
+        case .compactMenu: return t("Компактное меню настроек", "Compact Settings Menu")
         }
     }
 }
 
 private enum PhantomSettingsSection: Int32 {
+    case logo
     case ghost
     case details
     case history
     case interface
+    case appearance
 }
 
 private enum PhantomSettingsEntry: ItemListNodeEntry {
+    case logo(Int32, String, String)
     case header(PhantomSettingsSection, Int32, String)
     case toggle(PhantomSettingsSection, Int32, PhantomToggle, String, Bool)
     case footer(PhantomSettingsSection, Int32, String)
 
     var section: ItemListSectionId {
         switch self {
+        case .logo:
+            return PhantomSettingsSection.logo.rawValue
         case let .header(section, _, _), let .toggle(section, _, _, _, _), let .footer(section, _, _):
             return section.rawValue
         }
@@ -145,7 +167,7 @@ private enum PhantomSettingsEntry: ItemListNodeEntry {
 
     var stableId: Int32 {
         switch self {
-        case let .header(_, id, _), let .toggle(_, id, _, _, _), let .footer(_, id, _):
+        case let .logo(id, _, _), let .header(_, id, _), let .toggle(_, id, _, _, _), let .footer(_, id, _):
             return id
         }
     }
@@ -157,6 +179,8 @@ private enum PhantomSettingsEntry: ItemListNodeEntry {
     func item(presentationData: ItemListPresentationData, arguments: Any) -> ListViewItem {
         let arguments = arguments as! PhantomSettingsControllerArguments
         switch self {
+        case let .logo(_, title, subtitle):
+            return PhantomSettingsHeaderItem(theme: presentationData.theme, title: title, subtitle: subtitle, sectionId: self.section)
         case let .header(_, _, text):
             return ItemListSectionHeaderItem(presentationData: presentationData, text: text, sectionId: self.section)
         case let .footer(_, _, text):
@@ -185,6 +209,9 @@ private func phantomSettingsEntries(strings: PhantomStrings, state: PhantomSetti
         nextId += 1
     }
 
+    entries.append(.logo(nextId, strings.title, strings.versions(mod: PhantomSettings.modVersion, telegram: phantomTelegramVersion())))
+    nextId += 1
+
     header(.ghost, strings.ghostHeader)
     toggle(.ghost, .ghostMode)
     footer(.ghost, strings.ghostFooter)
@@ -204,7 +231,23 @@ private func phantomSettingsEntries(strings: PhantomStrings, state: PhantomSetti
     toggle(.interface, .hideAds)
     toggle(.interface, .showPeerId)
     footer(.interface, strings.interfaceFooter)
+
+    header(.appearance, strings.appearanceHeader)
+    toggle(.appearance, .hideStories)
+    toggle(.appearance, .hidePhone)
+    toggle(.appearance, .compactMenu)
+    footer(.appearance, strings.appearanceFooter)
     return entries
+}
+
+/// The Telegram version this build is based on, with the build number.
+private func phantomTelegramVersion() -> String {
+    let info = Bundle.main.infoDictionary
+    let version = info?["CFBundleShortVersionString"] as? String ?? "?"
+    if let build = info?["CFBundleVersion"] as? String, !build.isEmpty {
+        return "\(version) (\(build))"
+    }
+    return version
 }
 
 public func phantomSettingsController(context: AccountContext) -> ViewController {

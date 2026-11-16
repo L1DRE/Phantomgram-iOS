@@ -8,6 +8,9 @@ import Foundation
 public enum PhantomSettings {
     public static let didChangeNotification = Notification.Name("PhantomSettingsDidChange")
 
+    /// The mod's own version, shown next to Telegram's in the Phantomgram settings.
+    public static let modVersion = "1.1"
+
     private enum Key {
         static let sendReadMessages = "phantom.sendReadMessages"
         static let sendOnlinePackets = "phantom.sendOnlinePackets"
@@ -20,6 +23,9 @@ public enum PhantomSettings {
         static let showMessageSeconds = "phantom.showMessageSeconds"
         static let hideSponsoredMessages = "phantom.hideSponsoredMessages"
         static let showPeerId = "phantom.showPeerId"
+        static let hideStories = "phantom.hideStories"
+        static let hidePhoneNumber = "phantom.hidePhoneNumber"
+        static let compactSettingsMenu = "phantom.compactSettingsMenu"
     }
 
     private static func bool(_ key: String, default defaultValue: Bool) -> Bool {
@@ -101,6 +107,24 @@ public enum PhantomSettings {
     public static var showPeerId: Bool {
         get { return bool(Key.showPeerId, default: true) }
         set { set(newValue, Key.showPeerId) }
+    }
+
+    /// Hide the stories row above the chat list (and stories of archived chats).
+    public static var hideStories: Bool {
+        get { return bool(Key.hideStories, default: false) }
+        set { set(newValue, Key.hideStories) }
+    }
+
+    /// Hide the account's phone number under the name at the top of Settings.
+    public static var hidePhoneNumber: Bool {
+        get { return bool(Key.hidePhoneNumber, default: false) }
+        set { set(newValue, Key.hidePhoneNumber) }
+    }
+
+    /// Hide Premium, Stars, TON, Business and gift entries from the Settings menu.
+    public static var compactSettingsMenu: Bool {
+        get { return bool(Key.compactSettingsMenu, default: false) }
+        set { set(newValue, Key.compactSettingsMenu) }
     }
 
     private static let ghostKeys = [Key.sendReadMessages, Key.sendOnlinePackets, Key.sendTyping, Key.sendStoriesSeen, Key.sendContentConsumed]

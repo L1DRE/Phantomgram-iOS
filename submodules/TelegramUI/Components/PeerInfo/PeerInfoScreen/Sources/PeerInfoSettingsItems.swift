@@ -19,6 +19,7 @@ enum SettingsSection: Int, CaseIterable {
     case phone
     case accounts
     case myProfile
+    case phantom
     case wallet
     case proxy
     case apps
@@ -265,8 +266,8 @@ func settingsItems(data: PeerInfoScreenData?, context: AccountContext, presentat
     items[.advanced]!.append(PeerInfoScreenDisclosureItem(id: 3, text: presentationData.strings.Settings_Appearance, icon: PresentationResourcesSettings.appearance, action: {
         interaction.openSettings(.appearance)
     }))
-    // Phantom: entry point for the Phantomgram settings screen.
-    items[.advanced]!.append(PeerInfoScreenDisclosureItem(id: 7, text: "Phantomgram", icon: PresentationResourcesSettings.security, action: {
+    // Phantom: entry point for the Phantomgram settings screen, in a group of its own.
+    items[.phantom]!.append(PeerInfoScreenDisclosureItem(id: 0, label: .text(PhantomSettings.modVersion), text: "Phantomgram", icon: PresentationResourcesSettings.phantom, action: {
         interaction.openSettings(.phantomgram)
     }))
     
@@ -355,6 +356,12 @@ func settingsItems(data: PeerInfoScreenData?, context: AccountContext, presentat
     items[.support]!.append(PeerInfoScreenDisclosureItem(id: 2, text: presentationData.strings.Settings_Tips, icon: PresentationResourcesSettings.tips, action: {
         interaction.openSettings(.tips)
     }))
+    
+    // Phantom: the compact menu drops Premium, Stars, TON, Business, gifts and the wallet.
+    if PhantomSettings.compactSettingsMenu {
+        items[.payment] = []
+        items[.wallet] = []
+    }
     
     var result: [(AnyHashable, [PeerInfoScreenItem])] = []
     for section in SettingsSection.allCases {
