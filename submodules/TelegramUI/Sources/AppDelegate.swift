@@ -958,7 +958,9 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
                 }
             })
         }, requestSiriAuthorization: { completion in
-            if #available(iOS 10, *) {
+            // Phantom: INPreferences throws (and kills the app) without the Siri entitlement,
+            // which a free sideload signing does not grant.
+            if buildConfig.isSiriEnabled && phantomHasSiriEntitlement {
                 INPreferences.requestSiriAuthorization { status in
                     if case .authorized = status {
                         completion(true)
@@ -970,7 +972,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
                 completion(false)
             }
         }, siriAuthorization: {
-            if buildConfig.isSiriEnabled {
+            if buildConfig.isSiriEnabled && phantomHasSiriEntitlement {
                 if #available(iOS 10, *) {
                     switch INPreferences.siriAuthorizationStatus() {
                     case .authorized:
@@ -3508,3 +3510,13 @@ private func phantomPrivateContainerUrl() -> URL? {
     }
     return url
 }
+
+// Phantom: a sideloaded build is re-signed under another bundle id (a free Apple ID appends its
+// team id) and without the Siri entitlement, so INPreferences raises an Objective-C exception.
+// Only a build that kept Telegram's own bundle id can have the entitlement.
+private let phantomHasSiriEntitlement: Bool = {
+    guard let bundleId = Bundle.main.bundleIdentifier else {
+        return false
+    }
+    return bundleId == "ph.telegra.Telegraph"
+}()
