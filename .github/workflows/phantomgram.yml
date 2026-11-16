@@ -73,6 +73,9 @@ jobs:
 
       - name: Build
         working-directory: ${{ env.SOURCE_DIR }}
+        env:
+          TG_API_ID: ${{ secrets.TG_API_ID }}
+          TG_API_HASH: ${{ secrets.TG_API_HASH }}
         run: |
           set -x
           APP_VERSION=$(python3 -c 'import json;print(json.load(open("versions.json"))["app"])')
@@ -82,6 +85,23 @@ jobs:
           du -sh "$CACHE_DIR" 2>/dev/null || echo "no cache yet"
 
           python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
+
+          # Telegram's own api_id (8) makes the server demand an APNS check (APNS_VERIFY_CHECK_*) before
+          # sending a login code; a sideloaded build never receives that push and login times out.
+          # A personal api_id from my.telegram.org is not checked that way.
+          if [ -n "$TG_API_ID" ] && [ -n "$TG_API_HASH" ]; then
+            python3 - <<'EOF'
+          import json, os
+          path = "build-system/appstore-configuration.json"
+          config = json.load(open(path))
+          config["api_id"] = os.environ["TG_API_ID"].strip()
+          config["api_hash"] = os.environ["TG_API_HASH"].strip()
+          json.dump(config, open(path, "w"), indent="\t")
+          EOF
+            echo "Using the api_id from the TG_API_ID secret"
+          else
+            echo "::warning::TG_API_ID / TG_API_HASH secrets are not set: login will time out on a sideloaded build"
+          fi
 
           # The runner has 3 cores and 7 GB of RAM: keep Bazel from running out of memory.
           python3 -u build-system/Make/Make.py \
