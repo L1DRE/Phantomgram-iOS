@@ -562,6 +562,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         try! PasscodeEnvironment.shared.configure(PasscodeConfiguration(appGroupIdentifier: appGroupName, processRole: .mainApp, biometricKeychainService: walletBiometricKeychainService), privateAccessGroup: {
             BuildConfig.keychainAccessGroup(baseAppBundleId: baseAppBundleId)
         })
+        phantomScheduleSignatureReminder()
         // Phantom: a build sideloaded with a free Apple ID gets a new bundle id and usually no app
         // group, so the shared container is missing and launch used to stop at "Error 2" (a black
         // screen). Fall back to the app's own container; the extensions that would share the group
@@ -3496,6 +3497,27 @@ final class UpdateSettings: Codable, Equatable {
     static func ==(lhs: UpdateSettings, rhs: UpdateSettings) -> Bool {
         return lhs.url == rhs.url
     }
+}
+
+/// Phantom: a local notification a day before the sideload signature runs out, rescheduled at
+/// every launch (a reinstall brings a new expiration date).
+private func phantomScheduleSignatureReminder() {
+    let identifier = "phantom.signatureReminder"
+    let center = UNUserNotificationCenter.current()
+    center.removePendingNotificationRequests(withIdentifiers: [identifier])
+    guard let expirationDate = PhantomInstall.signatureExpirationDate else {
+        return
+    }
+    let interval = expirationDate.addingTimeInterval(-24.0 * 60.0 * 60.0).timeIntervalSinceNow
+    if interval < 60.0 {
+        return
+    }
+    let isRussian = Locale.preferredLanguages.first?.hasPrefix("ru") ?? false
+    let content = UNMutableNotificationContent()
+    content.title = "Phantomgram"
+    content.body = isRussian ? "Подпись истекает завтра. Установите приложение заново через Sideloadly, чтобы оно продолжило запускаться." : "The signature expires tomorrow. Install the app again with Sideloadly to keep it launching."
+    content.sound = .default
+    center.add(UNNotificationRequest(identifier: identifier, content: content, trigger: UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)), withCompletionHandler: nil)
 }
 
 /// Phantom: stands in for the app group container when the signature carries no app group.

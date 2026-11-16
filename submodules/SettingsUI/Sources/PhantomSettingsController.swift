@@ -7,6 +7,7 @@ import TelegramPresentationData
 import ItemListUI
 import PresentationDataUtils
 import AccountContext
+import TelegramUIPreferences
 
 /// One switch on the screen, bound to one `PhantomSettings` flag.
 private enum PhantomToggle: Int32 {
@@ -26,6 +27,12 @@ private enum PhantomToggle: Int32 {
     case hidePhone
     case compactMenu
     case keepPhotos
+    case hideGift
+    case hideContacts
+    case confirmStickers
+    case confirmGifs
+    case stripTracking
+    case noPreviews
 
     var value: Bool {
         switch self {
@@ -45,6 +52,12 @@ private enum PhantomToggle: Int32 {
         case .hidePhone: return PhantomSettings.hidePhoneNumber
         case .compactMenu: return PhantomSettings.compactSettingsMenu
         case .keepPhotos: return PhantomSettings.keepDisappearingPhotos
+        case .hideGift: return PhantomSettings.hideGiftButton
+        case .hideContacts: return PhantomSettings.hideContactsTab
+        case .confirmStickers: return PhantomSettings.confirmStickers
+        case .confirmGifs: return PhantomSettings.confirmGifs
+        case .stripTracking: return PhantomSettings.stripLinkTracking
+        case .noPreviews: return PhantomSettings.disableLinkPreviews
         }
     }
 
@@ -66,8 +79,31 @@ private enum PhantomToggle: Int32 {
         case .hidePhone: PhantomSettings.hidePhoneNumber = value
         case .compactMenu: PhantomSettings.compactSettingsMenu = value
         case .keepPhotos: PhantomSettings.keepDisappearingPhotos = value
+        case .hideGift: PhantomSettings.hideGiftButton = value
+        case .hideContacts: PhantomSettings.hideContactsTab = value
+        case .confirmStickers: PhantomSettings.confirmStickers = value
+        case .confirmGifs: PhantomSettings.confirmGifs = value
+        case .stripTracking: PhantomSettings.stripLinkTracking = value
+        case .noPreviews: PhantomSettings.disableLinkPreviews = value
         }
     }
+}
+
+/// A row that does something when tapped.
+private enum PhantomAction: Equatable {
+    case checkUpdate
+    case openUpdate(String)
+    case applyTheme
+    case openJournal
+    case exportSettings
+    case importSettings
+}
+
+private enum PhantomUpdateState: Equatable {
+    case checking
+    case upToDate
+    case available(Int, String)
+    case failed
 }
 
 private let phantomIconPink: [UIColor] = [UIColor(rgb: 0xff7aa8), UIColor(rgb: 0xe0356f)]
@@ -98,6 +134,12 @@ private let phantomToggleIcons: [PhantomToggle: UIImage] = {
     icons[.hideStories] = phantomIcon("Stories", phantomIconGraphite)
     icons[.hidePhone] = phantomIcon("ChangePhone", phantomIconGraphite)
     icons[.compactMenu] = phantomIcon("Settings", phantomIconGraphite)
+    icons[.hideGift] = phantomIcon("Gift", phantomIconIndigo)
+    icons[.hideContacts] = phantomIcon("Member", phantomIconIndigo)
+    icons[.confirmStickers] = phantomIcon("Sticker", phantomIconPink)
+    icons[.confirmGifs] = phantomIcon("Gif", phantomIconPink)
+    icons[.stripTracking] = phantomIcon("Link", phantomIconViolet)
+    icons[.noPreviews] = phantomIcon("View", phantomIconViolet)
     return icons
 }()
 
@@ -110,9 +152,11 @@ private func phantomSettingsTheme(_ theme: PresentationTheme) -> PresentationThe
 
 private final class PhantomSettingsControllerArguments {
     let update: (PhantomToggle, Bool) -> Void
+    let perform: (PhantomAction) -> Void
 
-    init(update: @escaping (PhantomToggle, Bool) -> Void) {
+    init(update: @escaping (PhantomToggle, Bool) -> Void, perform: @escaping (PhantomAction) -> Void) {
         self.update = update
+        self.perform = perform
     }
 }
 
@@ -150,6 +194,40 @@ private struct PhantomStrings {
     var title: String { return "Phantomgram" }
     func versions(mod: String, telegram: String) -> String { return t("Версия мода \(mod)\nTelegram \(telegram)", "Mod version \(mod)\nTelegram \(telegram)") }
     func ghostStatus(active: Bool) -> String { return active ? t("Призрак активен", "Ghost mode is on") : t("Призрак выключен", "Ghost mode is off") }
+    var installHeader: String { return t("УСТАНОВКА", "INSTALL") }
+    var installFooter: String { return t("Бесплатный Apple ID подписывает приложение на 7 дней. Когда подпись истечёт, приложение перестанет запускаться — установите его заново через Sideloadly, чаты и настройки сохранятся.", "A free Apple ID signs the app for 7 days. When the signature expires the app stops launching: install it again with Sideloadly, your chats and settings stay.") }
+    var signatureTitle: String { return t("Подпись", "Signature") }
+    func signatureLabel(daysLeft: Int) -> String {
+        if daysLeft < 0 {
+            return t("истекла", "expired")
+        } else if daysLeft == 0 {
+            return t("истекает сегодня", "expires today")
+        } else {
+            return t("ещё \(daysLeft) дн.", "\(daysLeft) d. left")
+        }
+    }
+    var updatesTitle: String { return t("Обновления", "Updates") }
+    func updatesLabel(_ state: PhantomUpdateState) -> String {
+        switch state {
+        case .checking: return t("проверка…", "checking…")
+        case .upToDate: return t("последняя версия", "up to date")
+        case let .available(build, _): return t("сборка \(build)", "build \(build)")
+        case .failed: return t("не удалось проверить", "check failed")
+        }
+    }
+    var journalTitle: String { return t("Журнал удалённых", "Deleted Messages Journal") }
+    var themeTitle: String { return t("Применить тему Phantom", "Apply the Phantom Theme") }
+    var themeApplied: String { return t("Тема Phantom применена: тёмная, с розовым акцентом. Вернуть прежнюю можно в «Оформление».", "The Phantom theme is on: dark with a pink accent. You can switch back in Appearance.") }
+    var sendingHeader: String { return t("ОТПРАВКА", "SENDING") }
+    var sendingFooter: String { return t("Очистка ссылок убирает из отправляемых ссылок метки слежки (utm, fbclid, igshid и подобные).", "Link cleaning removes tracking tags (utm, fbclid, igshid and the like) from the links you send.") }
+    var backupHeader: String { return t("РЕЗЕРВНАЯ КОПИЯ", "BACKUP") }
+    var backupFooter: String { return t("Настройки мода копируются в буфер обмена как текст. Сохраните его в «Избранное», а после переустановки скопируйте и нажмите «Вставить настройки».", "The mod's settings are copied to the clipboard as text. Keep it in Saved Messages; after a reinstall copy it and tap Paste Settings.") }
+    var exportTitle: String { return t("Скопировать настройки", "Copy Settings") }
+    var importTitle: String { return t("Вставить настройки", "Paste Settings") }
+    var exportDone: String { return t("Настройки скопированы в буфер обмена.", "The settings are in the clipboard.") }
+    var importDone: String { return t("Настройки применены.", "The settings were applied.") }
+    var importFailed: String { return t("В буфере обмена нет настроек Phantomgram.", "The clipboard holds no Phantomgram settings.") }
+    var tabsFooterAddition: String { return t(" Скрытие вкладки «Контакты» применяется после перезапуска.", " Hiding the Contacts tab applies after a restart.") }
     var appearanceHeader: String { return t("ОФОРМЛЕНИЕ", "APPEARANCE") }
     var appearanceFooter: String { return t("Компактное меню убирает из настроек Premium, звёзды, TON, Business и подарки.", "The compact menu removes Premium, Stars, TON, Business and gifts from Settings.") }
     var ghostHeader: String { return t("РЕЖИМ ПРИЗРАКА", "GHOST MODE") }
@@ -178,17 +256,26 @@ private struct PhantomStrings {
         case .hidePhone: return t("Скрыть номер в настройках", "Hide Phone Number in Settings")
         case .compactMenu: return t("Компактное меню настроек", "Compact Settings Menu")
         case .keepPhotos: return t("Сохранять исчезающие фото", "Keep Disappearing Photos")
+        case .hideGift: return t("Скрыть кнопку подарка", "Hide the Gift Button")
+        case .hideContacts: return t("Скрыть вкладку «Контакты»", "Hide the Contacts Tab")
+        case .confirmStickers: return t("Спрашивать перед стикером", "Ask Before Sending a Sticker")
+        case .confirmGifs: return t("Спрашивать перед GIF", "Ask Before Sending a GIF")
+        case .stripTracking: return t("Очищать ссылки от слежки", "Remove Tracking from Links")
+        case .noPreviews: return t("Без превью ссылок", "No Link Previews")
         }
     }
 }
 
 private enum PhantomSettingsSection: Int32 {
     case logo
+    case install
     case ghost
     case details
     case history
+    case sending
     case interface
     case appearance
+    case backup
 }
 
 private enum PhantomSettingsEntry: ItemListNodeEntry {
@@ -196,19 +283,22 @@ private enum PhantomSettingsEntry: ItemListNodeEntry {
     case header(PhantomSettingsSection, Int32, String)
     case toggle(PhantomSettingsSection, Int32, PhantomToggle, String, Bool)
     case footer(PhantomSettingsSection, Int32, String)
+    /// A titled value; the Bool marks a value that needs attention, the action is optional.
+    case info(PhantomSettingsSection, Int32, String, String, Bool, PhantomAction?)
+    case action(PhantomSettingsSection, Int32, String, PhantomAction)
 
     var section: ItemListSectionId {
         switch self {
         case .logo:
             return PhantomSettingsSection.logo.rawValue
-        case let .header(section, _, _), let .toggle(section, _, _, _, _), let .footer(section, _, _):
+        case let .header(section, _, _), let .toggle(section, _, _, _, _), let .footer(section, _, _), let .info(section, _, _, _, _, _), let .action(section, _, _, _):
             return section.rawValue
         }
     }
 
     var stableId: Int32 {
         switch self {
-        case let .logo(id, _, _, _, _), let .header(_, id, _), let .toggle(_, id, _, _, _), let .footer(_, id, _):
+        case let .logo(id, _, _, _, _), let .header(_, id, _), let .toggle(_, id, _, _, _), let .footer(_, id, _), let .info(_, id, _, _, _, _), let .action(_, id, _, _):
             return id
         }
     }
@@ -226,6 +316,16 @@ private enum PhantomSettingsEntry: ItemListNodeEntry {
             return ItemListSectionHeaderItem(presentationData: presentationData, text: text, sectionId: self.section)
         case let .footer(_, _, text):
             return ItemListTextItem(presentationData: presentationData, text: .plain(text), sectionId: self.section)
+        case let .info(_, _, title, label, needsAttention, action):
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: title, label: label, labelStyle: needsAttention ? .coloredText(phantomAccentColor) : .text, sectionId: self.section, style: .blocks, disclosureStyle: action != nil ? .arrow : .none, action: action.flatMap { action -> (() -> Void) in
+                return {
+                    arguments.perform(action)
+                }
+            })
+        case let .action(_, _, title, action):
+            return ItemListActionItem(presentationData: presentationData, systemStyle: .glass, title: title, kind: .generic, alignment: .natural, sectionId: self.section, style: .blocks, action: {
+                arguments.perform(action)
+            })
         case let .toggle(_, _, toggle, title, value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, icon: phantomToggleIcons[toggle], title: title, value: value, sectionId: self.section, style: .blocks, updated: { value in
                 arguments.update(toggle, value)
@@ -234,7 +334,7 @@ private enum PhantomSettingsEntry: ItemListNodeEntry {
     }
 }
 
-private func phantomSettingsEntries(strings: PhantomStrings, state: PhantomSettingsState) -> [PhantomSettingsEntry] {
+private func phantomSettingsEntries(strings: PhantomStrings, state: PhantomSettingsState, updateState: PhantomUpdateState) -> [PhantomSettingsEntry] {
     var entries: [PhantomSettingsEntry] = []
     var nextId: Int32 = 0
     func header(_ section: PhantomSettingsSection, _ text: String) {
@@ -249,10 +349,29 @@ private func phantomSettingsEntries(strings: PhantomStrings, state: PhantomSetti
         entries.append(.footer(section, nextId, text))
         nextId += 1
     }
+    func info(_ section: PhantomSettingsSection, _ title: String, _ label: String, needsAttention: Bool = false, action: PhantomAction? = nil) {
+        entries.append(.info(section, nextId, title, label, needsAttention, action))
+        nextId += 1
+    }
+    func action(_ section: PhantomSettingsSection, _ title: String, _ action: PhantomAction) {
+        entries.append(.action(section, nextId, title, action))
+        nextId += 1
+    }
 
     let isGhostActive = state.value(.ghostMode)
     entries.append(.logo(nextId, strings.title, strings.versions(mod: PhantomSettings.modVersion, telegram: phantomTelegramVersion()), strings.ghostStatus(active: isGhostActive), isGhostActive))
     nextId += 1
+
+    header(.install, strings.installHeader)
+    if let daysLeft = PhantomInstall.signatureDaysLeft {
+        info(.install, strings.signatureTitle, strings.signatureLabel(daysLeft: daysLeft), needsAttention: daysLeft <= 1)
+    }
+    if case let .available(_, url) = updateState {
+        info(.install, strings.updatesTitle, strings.updatesLabel(updateState), needsAttention: true, action: .openUpdate(url))
+    } else {
+        info(.install, strings.updatesTitle, strings.updatesLabel(updateState), action: .checkUpdate)
+    }
+    footer(.install, strings.installFooter)
 
     header(.ghost, strings.ghostHeader)
     toggle(.ghost, .ghostMode)
@@ -267,19 +386,35 @@ private func phantomSettingsEntries(strings: PhantomStrings, state: PhantomSetti
     toggle(.history, .saveDeleted)
     toggle(.history, .saveEdits)
     toggle(.history, .keepPhotos)
+    info(.history, strings.journalTitle, "", action: .openJournal)
     footer(.history, strings.historyFooter)
+
+    header(.sending, strings.sendingHeader)
+    toggle(.sending, .confirmStickers)
+    toggle(.sending, .confirmGifs)
+    toggle(.sending, .stripTracking)
+    toggle(.sending, .noPreviews)
+    footer(.sending, strings.sendingFooter)
 
     header(.interface, strings.interfaceHeader)
     toggle(.interface, .showSeconds)
     toggle(.interface, .hideAds)
     toggle(.interface, .showPeerId)
-    footer(.interface, strings.interfaceFooter)
+    toggle(.interface, .hideGift)
+    toggle(.interface, .hideContacts)
+    footer(.interface, strings.interfaceFooter + strings.tabsFooterAddition)
 
     header(.appearance, strings.appearanceHeader)
     toggle(.appearance, .hideStories)
     toggle(.appearance, .hidePhone)
     toggle(.appearance, .compactMenu)
+    action(.appearance, strings.themeTitle, .applyTheme)
     footer(.appearance, strings.appearanceFooter)
+
+    header(.backup, strings.backupHeader)
+    action(.backup, strings.exportTitle, .exportSettings)
+    action(.backup, strings.importTitle, .importSettings)
+    footer(.backup, strings.backupFooter)
     return entries
 }
 
@@ -295,29 +430,88 @@ private func phantomTelegramVersion() -> String {
 
 public func phantomSettingsController(context: AccountContext) -> ViewController {
     let statePromise = ValuePromise(PhantomSettingsState.current(), ignoreRepeated: true)
+    let updateStatePromise = ValuePromise(PhantomUpdateState.checking, ignoreRepeated: true)
+
+    var pushControllerImpl: ((ViewController) -> Void)?
+    var presentAlertImpl: ((String) -> Void)?
+
+    let checkUpdate: () -> Void = {
+        updateStatePromise.set(.checking)
+        PhantomInstall.checkForUpdate(completion: { result in
+            switch result {
+            case .upToDate:
+                updateStatePromise.set(.upToDate)
+            case let .available(update):
+                updateStatePromise.set(.available(update.buildNumber, update.url))
+            case .failed:
+                updateStatePromise.set(.failed)
+            }
+        })
+    }
 
     let arguments = PhantomSettingsControllerArguments(update: { toggle, value in
         toggle.set(value)
         statePromise.set(PhantomSettingsState.current())
+    }, perform: { action in
+        let strings = PhantomStrings(languageCode: context.sharedContext.currentPresentationData.with { $0 }.strings.primaryComponent.languageCode)
+        switch action {
+        case .checkUpdate:
+            checkUpdate()
+        case let .openUpdate(url):
+            context.sharedContext.applicationBindings.openUrl(url)
+        case .applyTheme:
+            let _ = (updatePresentationThemeSettingsInteractively(accountManager: context.sharedContext.accountManager, { current in
+                var settings = current
+                let theme = PresentationThemeReference.builtin(.night)
+                settings.theme = theme
+                settings.themeSpecificAccentColors[theme.index] = PresentationThemeAccentColor(index: -1, baseColor: .custom, accentColor: 0xffff5c93, bubbleColors: [0xffe0356f, 0xff9a4be0])
+                settings.automaticThemeSwitchSetting.force = false
+                return settings
+            })
+            |> deliverOnMainQueue).start(completed: {
+                presentAlertImpl?(strings.themeApplied)
+            })
+        case .openJournal:
+            pushControllerImpl?(phantomDeletedLogController(context: context))
+        case .exportSettings:
+            UIPasteboard.general.string = PhantomSettings.exportedSettings()
+            presentAlertImpl?(strings.exportDone)
+        case .importSettings:
+            if let string = UIPasteboard.general.string, PhantomSettings.importSettings(string) {
+                statePromise.set(PhantomSettingsState.current())
+                presentAlertImpl?(strings.importDone)
+            } else {
+                presentAlertImpl?(strings.importFailed)
+            }
+        }
     })
 
     let signal = combineLatest(queue: .mainQueue(),
         context.sharedContext.presentationData,
-        statePromise.get()
+        statePromise.get(),
+        updateStatePromise.get()
     )
-    |> map { presentationData, state -> (ItemListControllerState, (ItemListNodeState, Any)) in
+    |> map { presentationData, state, updateState -> (ItemListControllerState, (ItemListNodeState, Any)) in
         var presentationData = presentationData
         presentationData = presentationData.withUpdated(theme: phantomSettingsTheme(presentationData.theme))
 
         let strings = PhantomStrings(languageCode: presentationData.strings.primaryComponent.languageCode)
 
         let controllerState = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text(strings.title), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back))
-        let listState = ItemListNodeState(presentationData: ItemListPresentationData(presentationData), entries: phantomSettingsEntries(strings: strings, state: state), style: .blocks, animateChanges: true)
+        let listState = ItemListNodeState(presentationData: ItemListPresentationData(presentationData), entries: phantomSettingsEntries(strings: strings, state: state, updateState: updateState), style: .blocks, animateChanges: true)
 
         return (controllerState, (listState, arguments))
     }
 
     let controller = ItemListController(context: context, state: signal)
     controller.navigationPresentation = .modal
+    pushControllerImpl = { [weak controller] c in
+        (controller?.navigationController as? NavigationController)?.pushViewController(c)
+    }
+    presentAlertImpl = { [weak controller] text in
+        let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+        controller?.present(textAlertController(context: context, title: nil, text: text, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})]), in: .window(.root))
+    }
+    checkUpdate()
     return controller
 }

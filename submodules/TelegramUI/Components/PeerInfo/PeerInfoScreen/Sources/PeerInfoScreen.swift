@@ -7166,6 +7166,22 @@ public final class PeerInfoScreenImpl: ViewController, PeerInfoScreen, KeyShortc
         let strings = self.presentationData.strings
         
         var items: [ContextMenuItem] = []
+        // Phantom: ghost mode without opening the settings.
+        let phantomIsGhost = PhantomSettings.ghostMode
+        let phantomIsRussian = strings.primaryComponent.languageCode.hasPrefix("ru")
+        let phantomGhostTitle: String
+        if phantomIsGhost {
+            phantomGhostTitle = phantomIsRussian ? "Выключить призрака" : "Turn Ghost Mode Off"
+        } else {
+            phantomGhostTitle = phantomIsRussian ? "Включить призрака" : "Turn Ghost Mode On"
+        }
+        items.append(.action(ContextMenuActionItem(text: phantomGhostTitle, icon: { theme in
+            return generateTintedImage(image: UIImage(bundleImageName: phantomIsGhost ? "Chat/Context Menu/Eye" : "Chat/Context Menu/EyeLocked"), color: theme.contextMenu.primaryColor)
+        }, action: { _, f in
+            PhantomSettings.ghostMode = !phantomIsGhost
+            f(.default)
+        })))
+        items.append(.separator)
         items.append(.action(ContextMenuActionItem(text: strings.Settings_AddAccount, icon: { theme in
             return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Add"), color: theme.contextMenu.primaryColor)
         }, action: { [weak self] _, f in

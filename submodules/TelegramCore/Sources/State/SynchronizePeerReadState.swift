@@ -248,7 +248,7 @@ private func validatePeerReadState(network: Network, postbox: Postbox, stateMana
 
 private func pushPeerReadState(network: Network, postbox: Postbox, stateManager: AccountStateManager, peerId: PeerId, readState: PeerReadState, phantomForce: Bool = false) -> Signal<PeerReadState, PeerReadStateValidationError> {
     // Phantom: messages stay read on this device, but the server (and the sender) is never told.
-    if !PhantomSettings.sendReadMessages && !phantomForce {
+    if !PhantomSettings.sendReadMessages && !phantomForce && !PhantomSettings.isGhostException(peerId.toInt64()) {
         return .single(readState)
     }
     if peerId.namespace == Namespaces.Peer.SecretChat {
@@ -442,6 +442,19 @@ func phantomPushReadStateOnSend(account: Account, peerId: PeerId) {
     if PhantomSettings.sendReadMessages || !PhantomSettings.markReadOnSend {
         return
     }
+    phantomForcePushReadState(account: account, peerId: peerId)
+}
+
+/// Phantom: marks the chat as read here and tells the server, whatever the ghost mode says.
+public func phantomMarkPeerReadNotifyingSender(account: Account, peerId: PeerId) {
+    let _ = (account.postbox.transaction { transaction -> Void in
+        _internal_togglePeerUnreadMarkInteractively(transaction: transaction, network: account.network, viewTracker: account.viewTracker, peerId: peerId, setToValue: false)
+    }).start(completed: {
+        phantomForcePushReadState(account: account, peerId: peerId)
+    })
+}
+
+private func phantomForcePushReadState(account: Account, peerId: PeerId) {
     guard let stateManager = account.stateManager else {
         return
     }

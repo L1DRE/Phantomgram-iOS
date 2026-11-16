@@ -176,7 +176,7 @@ private func requestActivity(postbox: Postbox, network: Network, accountPeerId: 
             }
             
             // Phantom: do not tell anyone we are typing, recording or choosing a sticker.
-            if !PhantomSettings.sendTyping {
+            if !PhantomSettings.sendTyping && !PhantomSettings.isGhostException(peerId.toInt64()) {
                 return .complete()
             }
 

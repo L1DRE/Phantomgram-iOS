@@ -1378,6 +1378,59 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
             })))
         }
 
+        // Phantom: what this device knows about the message. Tapping Copy copies all of it.
+        if message.id.namespace == Namespaces.Message.Cloud {
+            let isRussian = chatPresentationInterfaceState.strings.primaryComponent.languageCode.hasPrefix("ru")
+            let detailsTitle = isRussian ? "Детали сообщения" : "Message Details"
+            actions.append(.action(ContextMenuActionItem(text: detailsTitle, icon: { theme in
+                return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Info"), color: theme.actionSheet.primaryTextColor)
+            }, action: { c, _ in
+                c?.dismiss(completion: {
+                    let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = "dd.MM.yyyy HH:mm:ss"
+                    var lines: [String] = []
+                    lines.append("ID: \(message.id.id)")
+                    lines.append((isRussian ? "Чат: " : "Chat: ") + "\(message.id.peerId.id._internalGetInt64Value())")
+                    if let author = message.author {
+                        lines.append((isRussian ? "Отправитель: " : "Sender: ") + "\(author.id.id._internalGetInt64Value())")
+                    }
+                    lines.append((isRussian ? "Отправлено: " : "Sent: ") + formatter.string(from: Date(timeIntervalSince1970: Double(message.timestamp))))
+                    for attribute in message.attributes {
+                        if let attribute = attribute as? EditedMessageAttribute, !attribute.isHidden {
+                            lines.append((isRussian ? "Изменено: " : "Edited: ") + formatter.string(from: Date(timeIntervalSince1970: Double(attribute.date))))
+                        }
+                    }
+                    if let deletedDate = message.phantomDeletedDate {
+                        lines.append((isRussian ? "Удалено: " : "Deleted: ") + formatter.string(from: Date(timeIntervalSince1970: Double(deletedDate))))
+                    }
+                    if !message.text.isEmpty {
+                        lines.append((isRussian ? "Символов: " : "Characters: ") + "\(message.text.count)")
+                    }
+                    for media in message.media {
+                        if let file = media as? TelegramMediaFile {
+                            lines.append((isRussian ? "Тип файла: " : "File type: ") + file.mimeType)
+                            if let size = file.size {
+                                lines.append((isRussian ? "Размер: " : "Size: ") + ByteCountFormatter.string(fromByteCount: size, countStyle: .file))
+                            }
+                        }
+                    }
+                    let detailsText = lines.joined(separator: "\n")
+                    controllerInteraction.presentController(textAlertController(
+                        context: context,
+                        title: detailsTitle,
+                        text: detailsText,
+                        actions: [
+                            TextAlertAction(type: .genericAction, title: presentationData.strings.Conversation_ContextMenuCopy, action: {
+                                UIPasteboard.general.string = detailsText
+                            }),
+                            TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})
+                        ]
+                    ), nil)
+                })
+            })))
+        }
+
         let isCopyProtected = chatPresentationInterfaceState.copyProtectionEnabled || message.isCopyProtected()
         if !messageText.isEmpty || richMessageMarkdown != nil || (resourceAvailable && isImage) || diceEmoji != nil {
             if !isExpired {

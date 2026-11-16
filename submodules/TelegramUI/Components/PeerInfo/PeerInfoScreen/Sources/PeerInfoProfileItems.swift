@@ -916,6 +916,15 @@ func infoItems(
         }
     }
     
+    // Phantom: while read receipts or typing statuses are off, a chat can be made an exception.
+    if let peer = data.peer, peer.id != context.account.peerId, !PhantomSettings.sendReadMessages || !PhantomSettings.sendTyping {
+        let isRussian = presentationData.strings.primaryComponent.languageCode.hasPrefix("ru")
+        let rawPeerId = peer.id.toInt64()
+        items[.peerInfo]!.append(PeerInfoScreenSwitchItem(id: 90002, text: isRussian ? "Не скрываться в этом чате" : "No Ghost Mode in This Chat", value: PhantomSettings.isGhostException(rawPeerId), toggled: { value in
+            PhantomSettings.setGhostException(rawPeerId, value)
+        }))
+    }
+
     var result: [(AnyHashable, [PeerInfoScreenItem])] = []
     for section in InfoSection.allCases {
         if let sectionItems = items[section], !sectionItems.isEmpty {

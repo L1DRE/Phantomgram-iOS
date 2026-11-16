@@ -372,6 +372,14 @@ func chatContextMenuItems(context: AccountContext, peerId: EnginePeer.Id, promoI
                                     let _ = context.engine.messages.togglePeersUnreadMarkInteractively(peerIds: [peerId], setToValue: nil).startStandalone()
                                     f(.default)
                                 })))
+                                // Phantom: in ghost mode the item above reads the chat on this device only.
+                                if !PhantomSettings.sendReadMessages && !PhantomSettings.isGhostException(peerId.toInt64()) {
+                                    let phantomReadTitle = strings.primaryComponent.languageCode.hasPrefix("ru") ? "Прочитать с отметкой" : "Read with Receipt"
+                                    items.append(.action(ContextMenuActionItem(text: phantomReadTitle, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Read"), color: theme.contextMenu.primaryColor) }, action: { _, f in
+                                        phantomMarkPeerReadNotifyingSender(account: context.account, peerId: peerId)
+                                        f(.default)
+                                    })))
+                                }
                             } else if !isForum {
                                 var canMarkAsUnread = true
                                 if peerId.namespace == Namespaces.Peer.CloudChannel && joined {

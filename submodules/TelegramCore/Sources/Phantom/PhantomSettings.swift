@@ -9,7 +9,7 @@ public enum PhantomSettings {
     public static let didChangeNotification = Notification.Name("PhantomSettingsDidChange")
 
     /// The mod's own version, shown next to Telegram's in the Phantomgram settings.
-    public static let modVersion = "1.2"
+    public static let modVersion = "1.3"
 
     private enum Key {
         static let sendReadMessages = "phantom.sendReadMessages"
@@ -27,6 +27,13 @@ public enum PhantomSettings {
         static let hidePhoneNumber = "phantom.hidePhoneNumber"
         static let compactSettingsMenu = "phantom.compactSettingsMenu"
         static let keepDisappearingPhotos = "phantom.keepDisappearingPhotos"
+        static let confirmStickers = "phantom.confirmStickers"
+        static let confirmGifs = "phantom.confirmGifs"
+        static let stripLinkTracking = "phantom.stripLinkTracking"
+        static let disableLinkPreviews = "phantom.disableLinkPreviews"
+        static let hideContactsTab = "phantom.hideContactsTab"
+        static let hideGiftButton = "phantom.hideGiftButton"
+        static let ghostExceptions = "phantom.ghostExceptions"
     }
 
     private static func bool(_ key: String, default defaultValue: Bool) -> Bool {
@@ -132,6 +139,111 @@ public enum PhantomSettings {
     public static var compactSettingsMenu: Bool {
         get { return bool(Key.compactSettingsMenu, default: false) }
         set { set(newValue, Key.compactSettingsMenu) }
+    }
+
+    /// Ask before sending a sticker.
+    public static var confirmStickers: Bool {
+        get { return bool(Key.confirmStickers, default: false) }
+        set { set(newValue, Key.confirmStickers) }
+    }
+
+    /// Ask before sending a GIF.
+    public static var confirmGifs: Bool {
+        get { return bool(Key.confirmGifs, default: false) }
+        set { set(newValue, Key.confirmGifs) }
+    }
+
+    /// Remove tracking parameters (utm_*, fbclid, …) from links in outgoing messages.
+    public static var stripLinkTracking: Bool {
+        get { return bool(Key.stripLinkTracking, default: false) }
+        set { set(newValue, Key.stripLinkTracking) }
+    }
+
+    /// Send links without a preview.
+    public static var disableLinkPreviews: Bool {
+        get { return bool(Key.disableLinkPreviews, default: false) }
+        set { set(newValue, Key.disableLinkPreviews) }
+    }
+
+    /// Remove the Contacts tab. Applies at the next launch.
+    public static var hideContactsTab: Bool {
+        get { return bool(Key.hideContactsTab, default: false) }
+        set { set(newValue, Key.hideContactsTab) }
+    }
+
+    /// Hide the gift button in the message field of private chats.
+    public static var hideGiftButton: Bool {
+        get { return bool(Key.hideGiftButton, default: false) }
+        set { set(newValue, Key.hideGiftButton) }
+    }
+
+    /// Chats that get read receipts and typing statuses even in ghost mode, as raw peer ids.
+    public static var ghostExceptions: Set<Int64> {
+        get {
+            let values = UserDefaults.standard.array(forKey: Key.ghostExceptions) as? [NSNumber] ?? []
+            return Set(values.map { $0.int64Value })
+        }
+        set {
+            UserDefaults.standard.set(newValue.sorted().map { NSNumber(value: $0) }, forKey: Key.ghostExceptions)
+            NotificationCenter.default.post(name: PhantomSettings.didChangeNotification, object: nil)
+        }
+    }
+
+    public static func isGhostException(_ peerId: Int64) -> Bool {
+        guard let values = UserDefaults.standard.array(forKey: Key.ghostExceptions) as? [NSNumber] else {
+            return false
+        }
+        return values.contains(where: { $0.int64Value == peerId })
+    }
+
+    public static func setGhostException(_ peerId: Int64, _ value: Bool) {
+        var exceptions = ghostExceptions
+        if value {
+            exceptions.insert(peerId)
+        } else {
+            exceptions.remove(peerId)
+        }
+        ghostExceptions = exceptions
+    }
+
+    private static let exportedBoolKeys: [String] = [
+        Key.sendReadMessages, Key.sendOnlinePackets, Key.sendTyping, Key.saveDeletedMessages, Key.saveEditsHistory,
+        Key.sendStoriesSeen, Key.sendContentConsumed, Key.markReadOnSend, Key.showMessageSeconds, Key.hideSponsoredMessages,
+        Key.showPeerId, Key.hideStories, Key.hidePhoneNumber, Key.compactSettingsMenu, Key.confirmStickers, Key.confirmGifs,
+        Key.stripLinkTracking, Key.disableLinkPreviews, Key.hideContactsTab, Key.hideGiftButton
+    ]
+
+    /// The switches and the ghost exceptions as JSON, to carry over to another install.
+    public static func exportedSettings() -> String {
+        var values: [String: Any] = [:]
+        let defaults = UserDefaults.standard
+        for key in exportedBoolKeys where defaults.object(forKey: key) != nil {
+            values[key] = defaults.bool(forKey: key)
+        }
+        values[Key.ghostExceptions] = ghostExceptions.sorted()
+        values["phantom.export"] = 1
+        guard let data = try? JSONSerialization.data(withJSONObject: values, options: [.sortedKeys]), let string = String(data: data, encoding: .utf8) else {
+            return "{}"
+        }
+        return string
+    }
+
+    /// Applies what `exportedSettings` produced. Returns false when the text is not such an export.
+    public static func importSettings(_ string: String) -> Bool {
+        guard let data = string.data(using: .utf8), let values = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any], values["phantom.export"] != nil else {
+            return false
+        }
+        let defaults = UserDefaults.standard
+        for key in exportedBoolKeys {
+            if let value = values[key] as? Bool {
+                defaults.set(value, forKey: key)
+            }
+        }
+        if let exceptions = values[Key.ghostExceptions] as? [NSNumber] {
+            defaults.set(exceptions, forKey: Key.ghostExceptions)
+        }
+        NotificationCenter.default.post(name: PhantomSettings.didChangeNotification, object: nil)
+        return true
     }
 
     private static let ghostKeys = [Key.sendReadMessages, Key.sendOnlinePackets, Key.sendTyping, Key.sendStoriesSeen, Key.sendContentConsumed]

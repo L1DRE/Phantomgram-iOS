@@ -150,6 +150,7 @@ func phantomKeepDeletedMessages(transaction: Transaction, ids: [MessageId]) -> [
             attributes.append(PhantomDeletedMessageAttribute(date: now))
             return .update(phantomStoreMessage(current, attributes: attributes))
         })
+        PhantomDeletedLog.add(message: message, deletedDate: now)
     }
     return remaining
 }

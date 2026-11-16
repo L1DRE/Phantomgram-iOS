@@ -291,6 +291,8 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
     let presentationReady = Promise<Bool>()
     
     var presentationInterfaceState: ChatPresentationInterfaceState
+    // Phantom: set while a sticker or GIF the user has just confirmed is being sent.
+    var phantomSendConfirmed = false
     let presentationInterfaceStatePromise: ValuePromise<ChatPresentationInterfaceState>
     public var presentationInterfaceStateSignal: Signal<Any, NoError> {
         return self.presentationInterfaceStatePromise.get() |> map { $0 }
@@ -2387,6 +2389,19 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
             guard let strongSelf = self else {
                 return false
             }
+            // Phantom: ask before sending a sticker.
+            if PhantomSettings.confirmStickers && !strongSelf.phantomSendConfirmed {
+                strongSelf.phantomConfirmSend(isGif: false, send: { [weak strongSelf] in
+                    guard let strongSelf else {
+                        return
+                    }
+                    strongSelf.phantomSendConfirmed = true
+                    let _ = strongSelf.controllerInteraction?.sendSticker(fileReference, silentPosting, schedule, query, clearInput, sourceView, sourceRect, sourceLayer, bubbleUpEmojiOrStickersets)
+                    strongSelf.phantomSendConfirmed = false
+                })
+                return false
+            }
+
             
             if let _ = strongSelf.presentationInterfaceState.slowmodeState, strongSelf.presentationInterfaceState.subject != .scheduledMessages {
                 if let sourceView, let sourceRect {
@@ -2663,6 +2678,18 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
             }
         }, sendGif: { [weak self] fileReference, sourceView, sourceRect, silentPosting, schedule in
             if let strongSelf = self {
+                // Phantom: ask before sending a GIF.
+                if PhantomSettings.confirmGifs && !strongSelf.phantomSendConfirmed {
+                    strongSelf.phantomConfirmSend(isGif: true, send: { [weak strongSelf] in
+                        guard let strongSelf else {
+                            return
+                        }
+                        strongSelf.phantomSendConfirmed = true
+                        let _ = strongSelf.controllerInteraction?.sendGif(fileReference, sourceView, sourceRect, silentPosting, schedule)
+                        strongSelf.phantomSendConfirmed = false
+                    })
+                    return false
+                }
                 if let _ = strongSelf.presentationInterfaceState.slowmodeState, strongSelf.presentationInterfaceState.subject != .scheduledMessages {
                     strongSelf.interfaceInteraction?.displaySlowmodeTooltip(sourceView, sourceRect)
                     return false
