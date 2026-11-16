@@ -82,6 +82,23 @@ func managedAutoremoveMessageOperations(network: Network, postbox: Postbox, isRe
                     Logger.shared.log("Autoremove", "Performing autoremove for \(entry.messageId), isRemove: \(isRemove)")
 
                     if let message = transaction.getMessage(entry.messageId) {
+                        if message.phantomShouldKeepDisappearingPhoto {
+                            // A countdown may have been queued before the switch was enabled.
+                            // Reset the attributes as well as the queue entry: just returning
+                            // would leave the same expired entry at the head of the queue.
+                            transaction.updateMessage(message.id, update: { current in
+                                let attributes: [MessageAttribute] = current.attributes.map { attribute in
+                                    if let attribute = attribute as? AutoremoveTimeoutMessageAttribute {
+                                        return AutoremoveTimeoutMessageAttribute(timeout: attribute.timeout, countdownBeginTime: nil)
+                                    } else if let attribute = attribute as? AutoclearTimeoutMessageAttribute {
+                                        return AutoclearTimeoutMessageAttribute(timeout: attribute.timeout, countdownBeginTime: nil)
+                                    }
+                                    return attribute
+                                }
+                                return .update(StoreMessage(id: current.id, customStableId: nil, globallyUniqueId: current.globallyUniqueId, groupingKey: current.groupingKey, threadId: current.threadId, timestamp: current.timestamp, flags: StoreMessageFlags(current.flags), tags: current.tags, globalTags: current.globalTags, localTags: current.localTags, forwardInfo: current.forwardInfo.flatMap(StoreMessageForwardInfo.init), authorId: current.author?.id, text: current.text, attributes: attributes, media: current.media))
+                            })
+                            return
+                        }
                         if message.id.peerId.namespace == Namespaces.Peer.SecretChat || isRemove {
                             _internal_deleteMessages(transaction: transaction, mediaBox: postbox.mediaBox, ids: [entry.messageId])
                         } else {

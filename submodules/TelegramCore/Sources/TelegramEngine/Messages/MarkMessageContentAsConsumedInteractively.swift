@@ -6,6 +6,11 @@ import SwiftSignalKit
 func _internal_markMessageContentAsConsumedInteractively(postbox: Postbox, messageId: MessageId) -> Signal<Void, NoError> {
     return postbox.transaction { transaction -> Void in
         if let message = transaction.getMessage(messageId), message.flags.contains(.Incoming) {
+            // Keep the original timeout metadata for the secret-media viewer, but do not
+            // start its countdown or enqueue a content-consumed receipt.
+            if message.phantomShouldKeepDisappearingPhoto {
+                return
+            }
             var updateMessage = false
             var updatedAttributes = message.attributes
             
@@ -177,6 +182,9 @@ func _internal_markReactionsOrPollVotesAsSeenInteractively(postbox: Postbox, mes
 
 func markMessageContentAsConsumedRemotely(transaction: Transaction, messageId: MessageId, consumeDate: Int32?) {
     if let message = transaction.getMessage(messageId) {
+        if message.phantomShouldKeepDisappearingPhoto {
+            return
+        }
         var updateMessage = false
         var updatedAttributes = message.attributes
         var updatedMedia = message.media

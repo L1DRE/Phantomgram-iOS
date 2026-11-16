@@ -55,6 +55,14 @@ public final class PhantomEditHistoryMessageAttribute: MessageAttribute {
 }
 
 public extension Message {
+    /// Photo-only retention: ordinary chat auto-delete and outgoing media keep their timers.
+    var phantomShouldKeepDisappearingPhoto: Bool {
+        return PhantomSettings.keepDisappearingPhotos
+            && self.flags.contains(.Incoming)
+            && self.containsSecretMedia
+            && self.media.contains(where: { $0 is TelegramMediaImage })
+    }
+
     /// Set when the server deleted this message and Phantomgram kept it.
     var phantomDeletedDate: Int32? {
         for attribute in self.attributes {
@@ -109,16 +117,23 @@ private func phantomStoreMessage(_ message: Message, attributes: [MessageAttribu
 /// Called wherever the server tells us to remove messages. With "save deleted messages" on,
 /// keeps the ones it can and marks them as deleted. Returns the ids that must still be removed.
 ///
-/// Always removed: local and scheduled messages (only cloud ones are kept), and self-destructing
-/// messages, whose sender chose to make them disappear.
+/// Local and scheduled messages are not retained here. Self-destructing content is excluded
+/// from Save Deleted Messages; incoming photos have their own retention switch.
 func phantomKeepDeletedMessages(transaction: Transaction, ids: [MessageId]) -> [MessageId] {
-    if !PhantomSettings.saveDeletedMessages {
+    if !PhantomSettings.saveDeletedMessages && !PhantomSettings.keepDisappearingPhotos {
         return ids
     }
     let now = phantomCurrentTimestamp()
     var remaining: [MessageId] = []
     for id in ids {
         guard id.namespace == Namespaces.Message.Cloud, let message = transaction.getMessage(id) else {
+            remaining.append(id)
+            continue
+        }
+        if message.phantomShouldKeepDisappearingPhoto {
+            continue
+        }
+        if !PhantomSettings.saveDeletedMessages {
             remaining.append(id)
             continue
         }

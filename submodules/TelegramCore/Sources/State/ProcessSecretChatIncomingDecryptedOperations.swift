@@ -291,6 +291,10 @@ func processSecretChatIncomingDecryptedOperations(encryptionProvider: Encryption
                                         var filteredMessageIds = messageIds
                                         outer: for i in (0 ..< filteredMessageIds.count).reversed() {
                                             if let message = transaction.getMessage(filteredMessageIds[i]) {
+                                                if message.phantomShouldKeepDisappearingPhoto {
+                                                    filteredMessageIds.remove(at: i)
+                                                    continue outer
+                                                }
                                                 for media in message.media {
                                                     if let media = media as? TelegramMediaAction {
                                                         if case .historyScreenshot = media.action {

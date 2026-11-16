@@ -4596,7 +4596,7 @@ func replayFinalState(
                 upsertEphemeralReplacement(transaction: transaction, anchorMessageId: anchorMessageId, message: message)
             case let .DeleteEphemeralMessages(peerId, ids):
                 deleteEphemeralMessages(transaction: transaction, peerId: peerId, ids: ids)
-            case let .DeleteMessagesWithGlobalIds(ids) where PhantomSettings.saveDeletedMessages:
+            case let .DeleteMessagesWithGlobalIds(ids) where PhantomSettings.saveDeletedMessages || PhantomSettings.keepDisappearingPhotos:
                 // Phantom: keep what we can, remove the rest by message id.
                 let remainingIds = phantomKeepDeletedMessages(transaction: transaction, ids: transaction.messageIdsForGlobalIds(ids))
                 if !remainingIds.isEmpty {
@@ -4694,6 +4694,11 @@ func replayFinalState(
                     }
                     
                     var updatedMedia = message.media
+                    if previousMessage.phantomShouldKeepDisappearingPhoto && updatedMedia.contains(where: { $0 is TelegramMediaExpiredContent }) {
+                        updatedMedia = previousMessage.media
+                        updatedAttributes.removeAll(where: { $0 is AutoremoveTimeoutMessageAttribute || $0 is AutoclearTimeoutMessageAttribute })
+                        updatedAttributes.append(contentsOf: previousMessage.attributes.filter { $0 is AutoremoveTimeoutMessageAttribute || $0 is AutoclearTimeoutMessageAttribute })
+                    }
                     if let previousPaidContent = previousMessage.media.first(where: { $0 is TelegramMediaPaidContent }) as? TelegramMediaPaidContent, case .full = previousPaidContent.extendedMedia.first {
                         updatedMedia = previousMessage.media
                     }

@@ -25,6 +25,7 @@ private enum PhantomToggle: Int32 {
     case hideStories
     case hidePhone
     case compactMenu
+    case keepPhotos
 
     var value: Bool {
         switch self {
@@ -43,6 +44,7 @@ private enum PhantomToggle: Int32 {
         case .hideStories: return PhantomSettings.hideStories
         case .hidePhone: return PhantomSettings.hidePhoneNumber
         case .compactMenu: return PhantomSettings.compactSettingsMenu
+        case .keepPhotos: return PhantomSettings.keepDisappearingPhotos
         }
     }
 
@@ -63,6 +65,7 @@ private enum PhantomToggle: Int32 {
         case .hideStories: PhantomSettings.hideStories = value
         case .hidePhone: PhantomSettings.hidePhoneNumber = value
         case .compactMenu: PhantomSettings.compactSettingsMenu = value
+        case .keepPhotos: PhantomSettings.keepDisappearingPhotos = value
         }
     }
 }
@@ -107,16 +110,14 @@ private struct PhantomStrings {
     }
 
     var title: String { return "Phantomgram" }
-    func versions(mod: String, telegram: String) -> String { return t("Версия мода \(mod)
-Telegram \(telegram)", "Mod version \(mod)
-Telegram \(telegram)") }
+    func versions(mod: String, telegram: String) -> String { return t("Версия мода \(mod)\nTelegram \(telegram)", "Mod version \(mod)\nTelegram \(telegram)") }
     var appearanceHeader: String { return t("ОФОРМЛЕНИЕ", "APPEARANCE") }
     var appearanceFooter: String { return t("Компактное меню убирает из настроек Premium, звёзды, TON, Business и подарки.", "The compact menu removes Premium, Stars, TON, Business and gifts from Settings.") }
     var ghostHeader: String { return t("РЕЖИМ ПРИЗРАКА", "GHOST MODE") }
     var ghostFooter: String { return t("Другие не увидят, что вы в сети, печатаете, прочитали сообщения, посмотрели истории или прослушали голосовые.", "Others won't see that you are online, typing, or have read their messages, watched their stories or played their voice messages.") }
     var detailsFooter: String { return t("Прочитанное остаётся прочитанным только на этом устройстве. «Прочитать при отправке»: когда вы пишете в чат, он отмечается прочитанным, как в обычном Telegram.", "What you read stays read only on this device. Mark Read When Sending: writing in a chat marks it as read, as the official app would.") }
     var historyHeader: String { return t("ИСТОРИЯ СООБЩЕНИЙ", "MESSAGE HISTORY") }
-    var historyFooter: String { return t("Удалённые сообщения помечаются значком 🗑 у времени. Старые версии текста — в меню сообщения, пункт «История правок». Всё хранится только на этом устройстве и только для чатов, которые были загружены. Самоуничтожающиеся сообщения не сохраняются.", "Deleted messages show 🗑 next to the time. Earlier versions of a text are in the message menu under Edit History. Everything stays on this device, only for chats that were loaded. Self-destructing messages are not kept.") }
+    var historyFooter: String { return t("Удалённые сообщения помечаются значком 🗑 у времени. Старые версии текста — в меню сообщения, пункт «История правок». Сохранение исчезающих фото включайте до просмотра: оно действует только на входящие фото с таймером и на один просмотр. Всё хранится только на этом устройстве. Уже исчезнувшие фото не восстанавливаются; очистка кэша может удалить загруженные файлы.", "Deleted messages show 🗑 next to the time. Earlier versions of a text are in the message menu under Edit History. Enable Keep Disappearing Photos before viewing: it applies only to incoming timer and view-once photos. Everything stays on this device. Expired photos cannot be restored; clearing the cache may remove downloaded files.") }
     var interfaceHeader: String { return t("ИНТЕРФЕЙС", "INTERFACE") }
     var interfaceFooter: String { return t("Дата регистрации — оценка по ID, точность до нескольких месяцев. Нажатие на ID или дату копирует их. Аккаунтов можно добавить до 10.", "The registration date is estimated from the ID and can be off by a few months. Tap the ID or date to copy it. Up to 10 accounts can be added.") }
 
@@ -137,6 +138,7 @@ Telegram \(telegram)") }
         case .hideStories: return t("Скрыть истории", "Hide Stories")
         case .hidePhone: return t("Скрыть номер в настройках", "Hide Phone Number in Settings")
         case .compactMenu: return t("Компактное меню настроек", "Compact Settings Menu")
+        case .keepPhotos: return t("Сохранять исчезающие фото", "Keep Disappearing Photos")
         }
     }
 }
@@ -224,6 +226,7 @@ private func phantomSettingsEntries(strings: PhantomStrings, state: PhantomSetti
     header(.history, strings.historyHeader)
     toggle(.history, .saveDeleted)
     toggle(.history, .saveEdits)
+    toggle(.history, .keepPhotos)
     footer(.history, strings.historyFooter)
 
     header(.interface, strings.interfaceHeader)

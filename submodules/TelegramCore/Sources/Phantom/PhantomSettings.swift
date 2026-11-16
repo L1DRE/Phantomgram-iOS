@@ -26,6 +26,7 @@ public enum PhantomSettings {
         static let hideStories = "phantom.hideStories"
         static let hidePhoneNumber = "phantom.hidePhoneNumber"
         static let compactSettingsMenu = "phantom.compactSettingsMenu"
+        static let keepDisappearingPhotos = "phantom.keepDisappearingPhotos"
     }
 
     private static func bool(_ key: String, default defaultValue: Bool) -> Bool {
@@ -39,6 +40,12 @@ public enum PhantomSettings {
     private static func set(_ value: Bool, _ key: String) {
         UserDefaults.standard.set(value, forKey: key)
         NotificationCenter.default.post(name: PhantomSettings.didChangeNotification, object: nil)
+    }
+
+    /// Keep incoming timer and view-once photos on this device. Enable before opening them.
+    public static var keepDisappearingPhotos: Bool {
+        get { return bool(Key.keepDisappearingPhotos, default: false) }
+        set { set(newValue, Key.keepDisappearingPhotos) }
     }
 
     /// Send read receipts ("blue ticks") for private chats, groups, channels and threads.
