@@ -112,16 +112,16 @@ func phantomPreparedOutgoingMessages(_ messages: [EnqueueMessage]) -> [EnqueueMe
         return messages
     }
     return messages.map { message -> EnqueueMessage in
-        guard case let .message(text, attributes, inlineStickers, mediaReference, threadId, replyToMessageId, replyToStoryId, localGroupingKey, correlationId, bubbleUpEmojiOrStickersets) = message else {
+        guard case let .message(originalText, originalAttributes, inlineStickers, originalMediaReference, threadId, replyToMessageId, replyToStoryId, localGroupingKey, correlationId, bubbleUpEmojiOrStickersets) = message else {
             return message
         }
         // A rich message keeps its text in a page of its own; leave those alone.
-        if attributes.contains(where: { $0 is RichTextMessageAttribute }) {
+        if originalAttributes.contains(where: { $0 is RichTextMessageAttribute }) {
             return message
         }
-        var text = text
-        var attributes = attributes
-        var mediaReference = mediaReference
+        var text = originalText
+        var attributes = originalAttributes
+        var mediaReference = originalMediaReference
 
         if stripTracking {
             let currentEntities = (attributes.first(where: { $0 is TextEntitiesMessageAttribute }) as? TextEntitiesMessageAttribute)?.entities ?? []
