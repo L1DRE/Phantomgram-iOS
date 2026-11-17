@@ -37,6 +37,7 @@ public enum PhantomSettings {
         static let confirmCalls = "phantom.confirmCalls"
         static let bypassCopyProtection = "phantom.bypassCopyProtection"
         static let shakeTogglesGhost = "phantom.shakeTogglesGhost"
+        static let previewVoiceMessages = "phantom.previewVoiceMessages"
     }
 
     private static func bool(_ key: String, default defaultValue: Bool) -> Bool {
@@ -168,6 +169,12 @@ public enum PhantomSettings {
         set { set(newValue, Key.confirmCalls) }
     }
 
+    /// A voice or video message opens as a preview instead of being sent on release.
+    public static var previewVoiceMessages: Bool {
+        get { return bool(Key.previewVoiceMessages, default: false) }
+        set { set(newValue, Key.previewVoiceMessages) }
+    }
+
     /// Shaking the device turns ghost mode on or off.
     public static var shakeTogglesGhost: Bool {
         get { return bool(Key.shakeTogglesGhost, default: false) }
@@ -232,7 +239,7 @@ public enum PhantomSettings {
         Key.sendStoriesSeen, Key.sendContentConsumed, Key.markReadOnSend, Key.showMessageSeconds, Key.hideSponsoredMessages,
         Key.showPeerId, Key.hideStories, Key.hidePhoneNumber, Key.compactSettingsMenu, Key.confirmStickers, Key.confirmGifs,
         Key.stripLinkTracking, Key.disableLinkPreviews, Key.hideContactsTab, Key.hideGiftButton,
-        Key.confirmCalls, Key.shakeTogglesGhost, Key.bypassCopyProtection
+        Key.confirmCalls, Key.shakeTogglesGhost, Key.bypassCopyProtection, Key.previewVoiceMessages
     ]
 
     /// The switches and the ghost exceptions as JSON, to carry over to another install.

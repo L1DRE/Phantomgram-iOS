@@ -36,15 +36,16 @@ private enum PhantomToggle: Int32 {
     case confirmCalls
     case shakeGhost
     case bypassCopyProtection
+    case previewVoice
 
     var value: Bool {
         switch self {
         case .ghostMode: return PhantomSettings.ghostMode
-        case .sendRead: return PhantomSettings.sendReadMessages
-        case .sendOnline: return PhantomSettings.sendOnlinePackets
-        case .sendTyping: return PhantomSettings.sendTyping
-        case .sendStories: return PhantomSettings.sendStoriesSeen
-        case .sendConsumed: return PhantomSettings.sendContentConsumed
+        case .sendRead: return !PhantomSettings.sendReadMessages
+        case .sendOnline: return !PhantomSettings.sendOnlinePackets
+        case .sendTyping: return !PhantomSettings.sendTyping
+        case .sendStories: return !PhantomSettings.sendStoriesSeen
+        case .sendConsumed: return !PhantomSettings.sendContentConsumed
         case .markReadOnSend: return PhantomSettings.markReadOnSend
         case .saveDeleted: return PhantomSettings.saveDeletedMessages
         case .saveEdits: return PhantomSettings.saveEditsHistory
@@ -64,17 +65,18 @@ private enum PhantomToggle: Int32 {
         case .noPreviews: return PhantomSettings.disableLinkPreviews
         case .confirmCalls: return PhantomSettings.confirmCalls
         case .shakeGhost: return PhantomSettings.shakeTogglesGhost
+        case .previewVoice: return PhantomSettings.previewVoiceMessages
         }
     }
 
     func set(_ value: Bool) {
         switch self {
         case .ghostMode: PhantomSettings.ghostMode = value
-        case .sendRead: PhantomSettings.sendReadMessages = value
-        case .sendOnline: PhantomSettings.sendOnlinePackets = value
-        case .sendTyping: PhantomSettings.sendTyping = value
-        case .sendStories: PhantomSettings.sendStoriesSeen = value
-        case .sendConsumed: PhantomSettings.sendContentConsumed = value
+        case .sendRead: PhantomSettings.sendReadMessages = !value
+        case .sendOnline: PhantomSettings.sendOnlinePackets = !value
+        case .sendTyping: PhantomSettings.sendTyping = !value
+        case .sendStories: PhantomSettings.sendStoriesSeen = !value
+        case .sendConsumed: PhantomSettings.sendContentConsumed = !value
         case .markReadOnSend: PhantomSettings.markReadOnSend = value
         case .saveDeleted: PhantomSettings.saveDeletedMessages = value
         case .saveEdits: PhantomSettings.saveEditsHistory = value
@@ -94,6 +96,7 @@ private enum PhantomToggle: Int32 {
         case .noPreviews: PhantomSettings.disableLinkPreviews = value
         case .confirmCalls: PhantomSettings.confirmCalls = value
         case .shakeGhost: PhantomSettings.shakeTogglesGhost = value
+        case .previewVoice: PhantomSettings.previewVoiceMessages = value
         }
     }
 }
@@ -132,26 +135,27 @@ private let phantomToggleIcons: [PhantomToggle: UIImage] = {
     icons[.sendOnline] = phantomIcon("Wifi", phantomIconPink)
     icons[.sendTyping] = phantomIcon("Chat", phantomIconPink)
     icons[.sendStories] = phantomIcon("Stories", phantomIconPink)
-    icons[.sendConsumed] = phantomIcon("Notifications", phantomIconPink)
-    icons[.markReadOnSend] = phantomIcon("Messages", phantomIconPink)
+    icons[.sendConsumed] = phantomIcon("Microphone", phantomIconPink)
+    icons[.markReadOnSend] = phantomIcon("Checkbox", phantomIconPink)
     icons[.saveDeleted] = phantomIcon("Delete", phantomIconViolet)
-    icons[.saveEdits] = phantomIcon("File", phantomIconViolet)
+    icons[.saveEdits] = phantomIcon("Brush", phantomIconViolet)
     icons[.bypassCopyProtection] = phantomIcon("File", phantomIconViolet)
     icons[.keepPhotos] = phantomIcon("Timer", phantomIconViolet)
     icons[.showSeconds] = phantomIcon("Clock", phantomIconIndigo)
-    icons[.hideAds] = phantomIcon("Block", phantomIconIndigo)
+    icons[.hideAds] = phantomIcon("NoAds", phantomIconIndigo)
     icons[.showPeerId] = phantomIcon("Profile", phantomIconIndigo)
-    icons[.hideStories] = phantomIcon("Stories", phantomIconGraphite)
+    icons[.hideStories] = phantomIcon("Status", phantomIconGraphite)
     icons[.hidePhone] = phantomIcon("ChangePhone", phantomIconGraphite)
-    icons[.compactMenu] = phantomIcon("Settings", phantomIconGraphite)
+    icons[.compactMenu] = phantomIcon("Folder", phantomIconGraphite)
     icons[.hideGift] = phantomIcon("Gift", phantomIconIndigo)
     icons[.hideContacts] = phantomIcon("Member", phantomIconIndigo)
     icons[.confirmStickers] = phantomIcon("Sticker", phantomIconPink)
     icons[.confirmGifs] = phantomIcon("Gif", phantomIconPink)
     icons[.stripTracking] = phantomIcon("Link", phantomIconViolet)
-    icons[.noPreviews] = phantomIcon("View", phantomIconViolet)
-    icons[.confirmCalls] = phantomIcon("Notifications", phantomIconPink)
-    icons[.shakeGhost] = phantomIcon("Settings", phantomIconPink)
+    icons[.noPreviews] = phantomIcon("Photo", phantomIconViolet)
+    icons[.confirmCalls] = phantomIcon("Phone", phantomIconPink)
+    icons[.shakeGhost] = phantomIcon("Shuffle", phantomIconPink)
+    icons[.previewVoice] = phantomIcon("Play", phantomIconPink)
     return icons
 }()
 
@@ -253,30 +257,31 @@ private struct PhantomStrings {
     func title(_ toggle: PhantomToggle) -> String {
         switch toggle {
         case .ghostMode: return t("Режим призрака", "Ghost Mode")
-        case .sendRead: return t("Отправлять «прочитано»", "Send Read Receipts")
-        case .sendOnline: return t("Отправлять «в сети»", "Send Online Status")
-        case .sendTyping: return t("Отправлять «печатает»", "Send Typing Status")
-        case .sendStories: return t("Отмечать истории просмотренными", "Mark Stories as Viewed")
-        case .sendConsumed: return t("Отмечать голосовые прослушанными", "Mark Voice Messages as Played")
-        case .markReadOnSend: return t("Прочитать при отправке", "Mark Read When Sending")
-        case .saveDeleted: return t("Сохранять удалённые сообщения", "Save Deleted Messages")
-        case .saveEdits: return t("Сохранять историю правок", "Save Edit History")
-        case .showSeconds: return t("Секунды во времени сообщений", "Seconds in Message Time")
-        case .hideAds: return t("Скрыть рекламу в каналах", "Hide Sponsored Messages")
-        case .showPeerId: return t("ID и дата регистрации в профиле", "ID and Sign-Up Date in Profiles")
+        case .sendRead: return t("Скрывать чтение", "Hide Read Receipts")
+        case .sendOnline: return t("Скрывать «в сети»", "Hide Online Status")
+        case .sendTyping: return t("Скрывать «печатает»", "Hide Typing")
+        case .sendStories: return t("Скрывать просмотр историй", "Hide Story Views")
+        case .sendConsumed: return t("Скрывать прослушивание", "Hide Voice Playback")
+        case .markReadOnSend: return t("Читать при отправке", "Read When Sending")
+        case .saveDeleted: return t("Сохранять удалённые", "Keep Deleted Messages")
+        case .saveEdits: return t("Сохранять правки", "Keep Edit History")
+        case .showSeconds: return t("Секунды в сообщениях", "Seconds in Time")
+        case .hideAds: return t("Скрыть рекламу", "Hide Ads")
+        case .showPeerId: return t("ID и дата в профиле", "ID and Date in Profiles")
         case .hideStories: return t("Скрыть истории", "Hide Stories")
-        case .hidePhone: return t("Скрыть номер в настройках", "Hide Phone Number in Settings")
-        case .compactMenu: return t("Компактное меню настроек", "Compact Settings Menu")
+        case .hidePhone: return t("Скрыть номер", "Hide Phone Number")
+        case .compactMenu: return t("Компактное меню", "Compact Menu")
         case .bypassCopyProtection: return t("Обход запрета копирования", "Bypass Copy Protection")
-        case .keepPhotos: return t("Сохранять исчезающие фото", "Keep Disappearing Photos")
-        case .hideGift: return t("Скрыть кнопку подарка", "Hide the Gift Button")
-        case .hideContacts: return t("Скрыть вкладку «Контакты»", "Hide the Contacts Tab")
-        case .confirmStickers: return t("Спрашивать перед стикером", "Ask Before Sending a Sticker")
-        case .confirmGifs: return t("Спрашивать перед GIF", "Ask Before Sending a GIF")
-        case .stripTracking: return t("Очищать ссылки от слежки", "Remove Tracking from Links")
+        case .keepPhotos: return t("Сохранять TTL-фото", "Keep Timer Photos")
+        case .hideGift: return t("Скрыть подарки", "Hide Gift Button")
+        case .hideContacts: return t("Скрыть «Контакты»", "Hide Contacts Tab")
+        case .confirmStickers: return t("Спрашивать: стикер", "Confirm Stickers")
+        case .confirmGifs: return t("Спрашивать: GIF", "Confirm GIFs")
+        case .stripTracking: return t("Чистить ссылки", "Clean Links")
         case .noPreviews: return t("Без превью ссылок", "No Link Previews")
-        case .confirmCalls: return t("Спрашивать перед звонком", "Ask Before Calling")
-        case .shakeGhost: return t("Призрак встряхиванием", "Shake for Ghost Mode")
+        case .confirmCalls: return t("Спрашивать: звонок", "Confirm Calls")
+        case .shakeGhost: return t("Призрак встряхиванием", "Shake for Ghost")
+        case .previewVoice: return t("Прослушать ГС до отправки", "Preview Voice Messages")
         }
     }
 }
@@ -410,6 +415,7 @@ private func phantomSettingsEntries(strings: PhantomStrings, state: PhantomSetti
     toggle(.sending, .confirmStickers)
     toggle(.sending, .confirmGifs)
     toggle(.sending, .confirmCalls)
+    toggle(.sending, .previewVoice)
     toggle(.sending, .stripTracking)
     toggle(.sending, .noPreviews)
     footer(.sending, strings.sendingFooter)

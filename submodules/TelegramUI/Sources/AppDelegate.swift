@@ -3519,22 +3519,27 @@ final class UpdateSettings: Codable, Equatable {
 /// Phantom: a local notification a day before the sideload signature runs out, rescheduled at
 /// every launch (a reinstall brings a new expiration date).
 private func phantomScheduleSignatureReminder() {
-    let identifier = "phantom.signatureReminder"
     let center = UNUserNotificationCenter.current()
-    center.removePendingNotificationRequests(withIdentifiers: [identifier])
+    center.removePendingNotificationRequests(withIdentifiers: ["phantom.signatureReminder", "phantom.signatureReminder3h"])
     guard let expirationDate = PhantomInstall.signatureExpirationDate else {
         return
     }
-    let interval = expirationDate.addingTimeInterval(-24.0 * 60.0 * 60.0).timeIntervalSinceNow
-    if interval < 60.0 {
-        return
-    }
     let isRussian = Locale.preferredLanguages.first?.hasPrefix("ru") ?? false
-    let content = UNMutableNotificationContent()
-    content.title = "Phantomgram"
-    content.body = isRussian ? "Подпись истекает завтра. Установите приложение заново через Sideloadly, чтобы оно продолжило запускаться." : "The signature expires tomorrow. Install the app again with Sideloadly to keep it launching."
-    content.sound = .default
-    center.add(UNNotificationRequest(identifier: identifier, content: content, trigger: UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)), withCompletionHandler: nil)
+    let reminders: [(String, Double, String)] = [
+        ("phantom.signatureReminder", 24.0, isRussian ? "Подпись истекает завтра. Установите приложение заново через Sideloadly, чтобы оно продолжило запускаться." : "The signature expires tomorrow. Install the app again with Sideloadly to keep it launching."),
+        ("phantom.signatureReminder3h", 3.0, isRussian ? "Подпись истекает через 3 часа. Переустановите приложение через Sideloadly." : "The signature expires in 3 hours. Install the app again with Sideloadly.")
+    ]
+    for (identifier, hours, body) in reminders {
+        let interval = expirationDate.addingTimeInterval(-hours * 60.0 * 60.0).timeIntervalSinceNow
+        if interval < 60.0 {
+            continue
+        }
+        let content = UNMutableNotificationContent()
+        content.title = "Phantomgram"
+        content.body = body
+        content.sound = .default
+        center.add(UNNotificationRequest(identifier: identifier, content: content, trigger: UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)), withCompletionHandler: nil)
+    }
 }
 
 /// Phantom: stands in for the app group container when the signature carries no app group.

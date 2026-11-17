@@ -262,6 +262,11 @@ extension ChatControllerImpl {
             updatedAction = .preview
             sendImmediately = true
         }
+        // Phantom: a recording can stop in the preview, so nothing is sent by releasing the button.
+        if PhantomSettings.previewVoiceMessages, case .send = action, !isScheduledMessages {
+            updatedAction = .preview
+            sendImmediately = false
+        }
         
         if let audioRecorderValue = self.audioRecorderValue {
             switch action {
