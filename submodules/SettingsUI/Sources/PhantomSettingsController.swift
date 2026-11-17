@@ -35,6 +35,7 @@ private enum PhantomToggle: Int32 {
     case noPreviews
     case confirmCalls
     case shakeGhost
+    case bypassCopyProtection
 
     var value: Bool {
         switch self {
@@ -53,6 +54,7 @@ private enum PhantomToggle: Int32 {
         case .hideStories: return PhantomSettings.hideStories
         case .hidePhone: return PhantomSettings.hidePhoneNumber
         case .compactMenu: return PhantomSettings.compactSettingsMenu
+        case .bypassCopyProtection: return PhantomSettings.bypassCopyProtection
         case .keepPhotos: return PhantomSettings.keepDisappearingPhotos
         case .hideGift: return PhantomSettings.hideGiftButton
         case .hideContacts: return PhantomSettings.hideContactsTab
@@ -82,6 +84,7 @@ private enum PhantomToggle: Int32 {
         case .hideStories: PhantomSettings.hideStories = value
         case .hidePhone: PhantomSettings.hidePhoneNumber = value
         case .compactMenu: PhantomSettings.compactSettingsMenu = value
+        case .bypassCopyProtection: PhantomSettings.bypassCopyProtection = value
         case .keepPhotos: PhantomSettings.keepDisappearingPhotos = value
         case .hideGift: PhantomSettings.hideGiftButton = value
         case .hideContacts: PhantomSettings.hideContactsTab = value
@@ -133,6 +136,7 @@ private let phantomToggleIcons: [PhantomToggle: UIImage] = {
     icons[.markReadOnSend] = phantomIcon("Messages", phantomIconPink)
     icons[.saveDeleted] = phantomIcon("Delete", phantomIconViolet)
     icons[.saveEdits] = phantomIcon("File", phantomIconViolet)
+    icons[.bypassCopyProtection] = phantomIcon("File", phantomIconViolet)
     icons[.keepPhotos] = phantomIcon("Timer", phantomIconViolet)
     icons[.showSeconds] = phantomIcon("Clock", phantomIconIndigo)
     icons[.hideAds] = phantomIcon("Block", phantomIconIndigo)
@@ -263,6 +267,7 @@ private struct PhantomStrings {
         case .hideStories: return t("Скрыть истории", "Hide Stories")
         case .hidePhone: return t("Скрыть номер в настройках", "Hide Phone Number in Settings")
         case .compactMenu: return t("Компактное меню настроек", "Compact Settings Menu")
+        case .bypassCopyProtection: return t("Обход запрета копирования", "Bypass Copy Protection")
         case .keepPhotos: return t("Сохранять исчезающие фото", "Keep Disappearing Photos")
         case .hideGift: return t("Скрыть кнопку подарка", "Hide the Gift Button")
         case .hideContacts: return t("Скрыть вкладку «Контакты»", "Hide the Contacts Tab")
@@ -397,6 +402,7 @@ private func phantomSettingsEntries(strings: PhantomStrings, state: PhantomSetti
     toggle(.history, .saveDeleted)
     toggle(.history, .saveEdits)
     toggle(.history, .keepPhotos)
+    toggle(.history, .bypassCopyProtection)
     info(.history, strings.journalTitle, "", action: .openJournal)
     footer(.history, strings.historyFooter)
 

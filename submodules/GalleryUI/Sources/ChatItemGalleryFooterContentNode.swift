@@ -946,7 +946,7 @@ final class ChatItemGalleryFooterContentNode: GalleryFooterContentNode, ASScroll
             canEdit = false
         }
         
-        if message.isCopyProtected() || peerIsCopyProtected || message.paidContent != nil {
+        if ((message.isCopyProtected() || peerIsCopyProtected) && !PhantomSettings.bypassCopyProtection) || message.paidContent != nil {
             canShare = false
             canEdit = false
         }

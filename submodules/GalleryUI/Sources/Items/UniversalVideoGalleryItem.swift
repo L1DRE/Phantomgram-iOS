@@ -3688,7 +3688,7 @@ final class UniversalVideoGalleryItemNode: ZoomableContentGalleryItemNode {
                     }
                 }
             } else {
-                if let (message, maybeFile, _) = strongSelf.contentInfo(), let file = maybeFile, !message.isCopyProtected() && !item.peerIsCopyProtected && message.paidContent == nil {
+                if let (message, maybeFile, _) = strongSelf.contentInfo(), let file = maybeFile, (PhantomSettings.bypassCopyProtection || (!message.isCopyProtected() && !item.peerIsCopyProtected)) && message.paidContent == nil {
                     items.append(.action(ContextMenuActionItem(text: strongSelf.presentationData.strings.Gallery_MenuSaveToGallery, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Download"), color: theme.actionSheet.primaryTextColor) }, action: { c, _ in
                         guard let self else {
                             c?.dismiss(result: .default, completion: nil)
@@ -3862,7 +3862,7 @@ final class UniversalVideoGalleryItemNode: ZoomableContentGalleryItemNode {
                     })))
                 }
                 
-                if let (message, _, _) = strongSelf.contentInfo(), let image = message.effectiveMedia.first(where: { $0 is TelegramMediaImage }) as? TelegramMediaImage, !message.isCopyProtected() && !item.peerIsCopyProtected && message.paidContent == nil {
+                if let (message, _, _) = strongSelf.contentInfo(), let image = message.effectiveMedia.first(where: { $0 is TelegramMediaImage }) as? TelegramMediaImage, (PhantomSettings.bypassCopyProtection || (!message.isCopyProtected() && !item.peerIsCopyProtected)) && message.paidContent == nil {
                     let context = strongSelf.context
                     var videoReference: AnyMediaReference?
                     if let video = image.video {
