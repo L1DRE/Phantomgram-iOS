@@ -904,7 +904,11 @@ func infoItems(
     // registration date. Tapping either copies it.
     if PhantomSettings.showPeerId, let peer = data.peer {
         let isRussian = presentationData.strings.primaryComponent.languageCode.hasPrefix("ru")
-        let idText = phantomDisplayPeerId(peer)
+        var idText = phantomDisplayPeerId(peer)
+        // The data center the profile photo is stored on, which is the account's own.
+        if let dcId = phantomPeerDatacenterId(peer) {
+            idText += " · DC\(dcId)"
+        }
         items[.peerInfo]!.append(PeerInfoScreenLabeledValueItem(id: 90000, label: "ID", text: idText, textColor: .primary, action: { _, _ in
             UIPasteboard.general.string = idText
         }, requestLayout: { _ in }))
@@ -932,6 +936,16 @@ func infoItems(
         }
     }
     return result
+}
+
+/// Phantom: the data center of the peer's profile photo; nil without a photo.
+private func phantomPeerDatacenterId(_ peer: EnginePeer) -> Int? {
+    for representation in peer.profileImageRepresentations {
+        if let resource = representation.resource as? CloudPeerPhotoSizeMediaResource {
+            return resource.datacenterId
+        }
+    }
+    return nil
 }
 
 /// Phantom: the ID as the Bot API writes it: users as is, basic groups negative, channels and

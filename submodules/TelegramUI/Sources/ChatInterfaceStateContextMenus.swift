@@ -1407,8 +1407,34 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
                     if !message.text.isEmpty {
                         lines.append((isRussian ? "Символов: " : "Characters: ") + "\(message.text.count)")
                     }
+                    if let forwardInfo = message.forwardInfo {
+                        if let source = forwardInfo.source ?? forwardInfo.author {
+                            lines.append((isRussian ? "Переслано из: " : "Forwarded from: ") + "\(source.id.id._internalGetInt64Value())")
+                        }
+                        if let sourceMessageId = forwardInfo.sourceMessageId {
+                            lines.append((isRussian ? "ID оригинала: " : "Original ID: ") + "\(sourceMessageId.id)")
+                        }
+                        lines.append((isRussian ? "Оригинал от: " : "Original date: ") + formatter.string(from: Date(timeIntervalSince1970: Double(forwardInfo.date))))
+                    }
+                    if let groupingKey = message.groupingKey {
+                        lines.append((isRussian ? "Альбом: " : "Album: ") + "\(groupingKey)")
+                    }
+                    for attribute in message.attributes {
+                        if let attribute = attribute as? ReplyMessageAttribute {
+                            lines.append((isRussian ? "Ответ на: " : "Reply to: ") + "\(attribute.messageId.id)")
+                        } else if let attribute = attribute as? ViewCountMessageAttribute {
+                            lines.append((isRussian ? "Просмотров: " : "Views: ") + "\(attribute.count)")
+                        } else if let attribute = attribute as? ForwardCountMessageAttribute {
+                            lines.append((isRussian ? "Пересылок: " : "Forwards: ") + "\(attribute.count)")
+                        } else if let attribute = attribute as? InlineBotMessageAttribute, let botId = attribute.peerId {
+                            lines.append((isRussian ? "Через бота: " : "Via bot: ") + "\(botId.id._internalGetInt64Value())")
+                        }
+                    }
                     for media in message.media {
                         if let file = media as? TelegramMediaFile {
+                            if let resource = file.resource as? CloudDocumentMediaResource {
+                                lines.append((isRussian ? "DC файла: " : "File DC: ") + "\(resource.datacenterId)")
+                            }
                             lines.append((isRussian ? "Тип файла: " : "File type: ") + file.mimeType)
                             if let size = file.size {
                                 lines.append((isRussian ? "Размер: " : "Size: ") + ByteCountFormatter.string(fromByteCount: size, countStyle: .file))
