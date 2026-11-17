@@ -368,7 +368,7 @@ func updatedChatEditInterfaceMessageState(context: AccountContext, state: ChatPr
 
 private func ephemeralReplacementContextMenuItems(chatPresentationInterfaceState: ChatPresentationInterfaceState, context: AccountContext, message: EngineRawMessage, controllerInteraction: ChatControllerInteraction, interfaceInteraction: ChatPanelInterfaceInteraction) -> Signal<ContextController.Items, NoError> {
     let presentationData = context.sharedContext.currentPresentationData.with { $0 }
-    let isCopyProtected = chatPresentationInterfaceState.copyProtectionEnabled || message.isCopyProtected()
+    let isCopyProtected = (chatPresentationInterfaceState.copyProtectionEnabled && !PhantomSettings.bypassCopyProtection) || (message.isCopyProtected() && !PhantomSettings.bypassCopyProtection)
     let replacementMessage = message.activeEphemeralReplacementMessage
 
     var richMessageInstantPage: InstantPage?
@@ -651,7 +651,7 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
             
             actions.append(.separator)
             
-            if chatPresentationInterfaceState.copyProtectionEnabled {
+            if (chatPresentationInterfaceState.copyProtectionEnabled && !PhantomSettings.bypassCopyProtection) {
             } else {
                 actions.append(.action(ContextMenuActionItem(text: chatPresentationInterfaceState.strings.Conversation_ContextMenuCopy, icon: { theme in
                     return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Copy"), color: theme.actionSheet.primaryTextColor)
@@ -812,7 +812,7 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
         }
     }
     
-    if !canSendMessagesToChat(chatPresentationInterfaceState) && (chatPresentationInterfaceState.copyProtectionEnabled || message.isCopyProtected()) {
+    if !canSendMessagesToChat(chatPresentationInterfaceState) && ((chatPresentationInterfaceState.copyProtectionEnabled && !PhantomSettings.bypassCopyProtection) || (message.isCopyProtected() && !PhantomSettings.bypassCopyProtection)) {
         canReply = false
     }
     
@@ -1457,7 +1457,7 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
             })))
         }
 
-        let isCopyProtected = chatPresentationInterfaceState.copyProtectionEnabled || message.isCopyProtected()
+        let isCopyProtected = (chatPresentationInterfaceState.copyProtectionEnabled && !PhantomSettings.bypassCopyProtection) || (message.isCopyProtected() && !PhantomSettings.bypassCopyProtection)
         if !messageText.isEmpty || richMessageMarkdown != nil || (resourceAvailable && isImage) || diceEmoji != nil {
             if !isExpired {
                 if !isPoll {
@@ -2720,11 +2720,11 @@ func chatAvailableMessageActionsImpl(engine: TelegramEngine, accountPeerId: Engi
                     }
                 }
                 
-                if message.isCopyProtected() || message.containsSecretMedia {
+                if (message.isCopyProtected() && !PhantomSettings.bypassCopyProtection) || message.containsSecretMedia {
                     isCopyProtected = true
                 }
                 
-                if isPeerCopyProtected(message.id.peerId) == true {
+                if isPeerCopyProtected(message.id.peerId) == true && !PhantomSettings.bypassCopyProtection {
                     isCopyProtected = true
                 }
                 
@@ -2842,7 +2842,7 @@ func chatAvailableMessageActionsImpl(engine: TelegramEngine, accountPeerId: Engi
                             }
                         }
                         if !message.containsSecretMedia && !isAction && !isShareProtected {
-                            if message.id.peerId.namespace != Namespaces.Peer.SecretChat && !message.isCopyProtected() {
+                            if message.id.peerId.namespace != Namespaces.Peer.SecretChat && !(message.isCopyProtected() && !PhantomSettings.bypassCopyProtection) {
                                 if !(message.flags.isSending || message.flags.contains(.Failed)) {
                                     optionsMap[id]!.insert(.forward)
                                 }
@@ -2858,7 +2858,7 @@ func chatAvailableMessageActionsImpl(engine: TelegramEngine, accountPeerId: Engi
                         }
                     } else if let group = peer as? TelegramGroup {
                         if message.id.peerId.namespace != Namespaces.Peer.SecretChat && !message.containsSecretMedia {
-                            if !isAction && !message.isCopyProtected() && !isShareProtected {
+                            if !isAction && !(message.isCopyProtected() && !PhantomSettings.bypassCopyProtection) && !isShareProtected {
                                 if !(message.flags.isSending || message.flags.contains(.Failed)) {
                                     optionsMap[id]!.insert(.forward)
                                 }
@@ -2877,7 +2877,7 @@ func chatAvailableMessageActionsImpl(engine: TelegramEngine, accountPeerId: Engi
                             optionsMap[id]!.insert(.report)
                         }
                     } else if let user = peer as? TelegramUser {
-                        if !isScheduled && message.id.peerId.namespace != Namespaces.Peer.SecretChat && !message.containsSecretMedia && !isAction && !message.id.peerId.isReplies && !message.isCopyProtected() && !isShareProtected {
+                        if !isScheduled && message.id.peerId.namespace != Namespaces.Peer.SecretChat && !message.containsSecretMedia && !isAction && !message.id.peerId.isReplies && !(message.isCopyProtected() && !PhantomSettings.bypassCopyProtection) && !isShareProtected {
                             if !(message.flags.isSending || message.flags.contains(.Failed)) {
                                 optionsMap[id]!.insert(.forward)
                             }

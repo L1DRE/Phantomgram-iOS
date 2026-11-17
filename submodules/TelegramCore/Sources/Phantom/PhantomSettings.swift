@@ -35,6 +35,7 @@ public enum PhantomSettings {
         static let hideGiftButton = "phantom.hideGiftButton"
         static let ghostExceptions = "phantom.ghostExceptions"
         static let confirmCalls = "phantom.confirmCalls"
+        static let bypassCopyProtection = "phantom.bypassCopyProtection"
         static let shakeTogglesGhost = "phantom.shakeTogglesGhost"
     }
 
@@ -49,6 +50,12 @@ public enum PhantomSettings {
     private static func set(_ value: Bool, _ key: String) {
         UserDefaults.standard.set(value, forKey: key)
         NotificationCenter.default.post(name: PhantomSettings.didChangeNotification, object: nil)
+    }
+
+    /// Ignore client-side noforwards checks. Server-side forwarding can still be rejected.
+    public static var bypassCopyProtection: Bool {
+        get { return bool(Key.bypassCopyProtection, default: false) }
+        set { set(newValue, Key.bypassCopyProtection) }
     }
 
     /// Keep incoming timer and view-once photos on this device. Enable before opening them.
@@ -225,7 +232,7 @@ public enum PhantomSettings {
         Key.sendStoriesSeen, Key.sendContentConsumed, Key.markReadOnSend, Key.showMessageSeconds, Key.hideSponsoredMessages,
         Key.showPeerId, Key.hideStories, Key.hidePhoneNumber, Key.compactSettingsMenu, Key.confirmStickers, Key.confirmGifs,
         Key.stripLinkTracking, Key.disableLinkPreviews, Key.hideContactsTab, Key.hideGiftButton,
-        Key.confirmCalls, Key.shakeTogglesGhost
+        Key.confirmCalls, Key.shakeTogglesGhost, Key.bypassCopyProtection
     ]
 
     /// The switches and the ghost exceptions as JSON, to carry over to another install.
