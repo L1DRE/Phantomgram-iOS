@@ -115,7 +115,11 @@ private enum PhantomAction: Equatable {
     case openJournal
     case exportSettings
     case importSettings
+    case openChannel
 }
+
+/// The mod's Telegram channel: news, builds and support.
+private let phantomChannelUrl = "https://t.me/PhantomGram_mod"
 
 private enum PhantomUpdateState: Equatable {
     case checking
@@ -231,6 +235,7 @@ private struct PhantomStrings {
         }
     }
     var updatesTitle: String { return t("Обновления", "Updates") }
+    var channelTitle: String { return t("Канал Phantomgram", "Phantomgram Channel") }
     func updatesLabel(_ state: PhantomUpdateState) -> String {
         switch state {
         case .checking: return t("проверка…", "checking…")
@@ -401,6 +406,7 @@ private func phantomSettingsEntries(strings: PhantomStrings, state: PhantomSetti
     } else {
         info(.install, strings.updatesTitle, strings.updatesLabel(updateState), action: .checkUpdate)
     }
+    info(.install, strings.channelTitle, "@PhantomGram_mod", action: .openChannel)
     footer(.install, strings.installFooter)
 
     header(.ghost, strings.ghostHeader)
@@ -470,6 +476,7 @@ public func phantomSettingsController(context: AccountContext) -> ViewController
 
     var pushControllerImpl: ((ViewController) -> Void)?
     var presentAlertImpl: ((String) -> Void)?
+    var openUrlImpl: ((String) -> Void)?
 
     let checkUpdate: () -> Void = {
         updateStatePromise.set(.checking)
@@ -495,6 +502,8 @@ public func phantomSettingsController(context: AccountContext) -> ViewController
             checkUpdate()
         case let .openUpdate(url):
             context.sharedContext.applicationBindings.openUrl(url)
+        case .openChannel:
+            openUrlImpl?(phantomChannelUrl)
         case .applyTheme:
             let _ = (updatePresentationThemeSettingsInteractively(accountManager: context.sharedContext.accountManager, { current in
                 var settings = current
@@ -547,6 +556,10 @@ public func phantomSettingsController(context: AccountContext) -> ViewController
     presentAlertImpl = { [weak controller] text in
         let presentationData = context.sharedContext.currentPresentationData.with { $0 }
         controller?.present(textAlertController(context: context, title: nil, text: text, actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})]), in: .window(.root))
+    }
+    openUrlImpl = { [weak controller] url in
+        let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+        context.sharedContext.openExternalUrl(context: context, urlContext: .generic, url: url, forceExternal: false, presentationData: presentationData, navigationController: controller?.navigationController as? NavigationController, dismissInput: {})
     }
     checkUpdate()
     return controller
