@@ -37,6 +37,8 @@ private enum PhantomToggle: Int32 {
     case shakeGhost
     case bypassCopyProtection
     case previewVoice
+    case noVoiceAutoplay
+    case appSwitcherCover
 
     var value: Bool {
         switch self {
@@ -66,6 +68,8 @@ private enum PhantomToggle: Int32 {
         case .confirmCalls: return PhantomSettings.confirmCalls
         case .shakeGhost: return PhantomSettings.shakeTogglesGhost
         case .previewVoice: return PhantomSettings.previewVoiceMessages
+        case .noVoiceAutoplay: return PhantomSettings.noVoiceAutoplay
+        case .appSwitcherCover: return PhantomSettings.appSwitcherCover
         }
     }
 
@@ -97,6 +101,8 @@ private enum PhantomToggle: Int32 {
         case .confirmCalls: PhantomSettings.confirmCalls = value
         case .shakeGhost: PhantomSettings.shakeTogglesGhost = value
         case .previewVoice: PhantomSettings.previewVoiceMessages = value
+        case .noVoiceAutoplay: PhantomSettings.noVoiceAutoplay = value
+        case .appSwitcherCover: PhantomSettings.appSwitcherCover = value
         }
     }
 }
@@ -156,6 +162,8 @@ private let phantomToggleIcons: [PhantomToggle: UIImage] = {
     icons[.confirmCalls] = phantomIcon("Phone", phantomIconPink)
     icons[.shakeGhost] = phantomIcon("Shuffle", phantomIconPink)
     icons[.previewVoice] = phantomIcon("Play", phantomIconPink)
+    icons[.noVoiceAutoplay] = phantomIcon("Speed", phantomIconIndigo)
+    icons[.appSwitcherCover] = phantomIcon("Privacy", phantomIconGraphite)
     return icons
 }()
 
@@ -282,6 +290,8 @@ private struct PhantomStrings {
         case .confirmCalls: return t("Спрашивать: звонок", "Confirm Calls")
         case .shakeGhost: return t("Призрак встряхиванием", "Shake for Ghost")
         case .previewVoice: return t("Прослушать ГС до отправки", "Preview Voice Messages")
+        case .noVoiceAutoplay: return t("Не играть следующее ГС", "Don't Autoplay Next Voice")
+        case .appSwitcherCover: return t("Скрывать в многозадачности", "Hide in App Switcher")
         }
     }
 }
@@ -426,12 +436,14 @@ private func phantomSettingsEntries(strings: PhantomStrings, state: PhantomSetti
     toggle(.interface, .showPeerId)
     toggle(.interface, .hideGift)
     toggle(.interface, .hideContacts)
+    toggle(.interface, .noVoiceAutoplay)
     footer(.interface, strings.interfaceFooter + strings.tabsFooterAddition)
 
     header(.appearance, strings.appearanceHeader)
     toggle(.appearance, .hideStories)
     toggle(.appearance, .hidePhone)
     toggle(.appearance, .compactMenu)
+    toggle(.appearance, .appSwitcherCover)
     action(.appearance, strings.themeTitle, .applyTheme)
     footer(.appearance, strings.appearanceFooter)
 

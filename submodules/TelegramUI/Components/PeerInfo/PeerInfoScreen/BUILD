@@ -12,6 +12,7 @@ swift_library(
     deps = [
         "//submodules/UrlWhitelist",
         "//submodules/AccountContext",
+        "//submodules/PromptUI",
         "//submodules/LottieSettings:LottieSettings",
         "//submodules/AccountUtils",
         "//submodules/ActionSheetPeerItem",

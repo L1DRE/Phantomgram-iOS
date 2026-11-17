@@ -16,6 +16,7 @@ import WebUI
 import AvatarNode
 import PeerNameColorItem
 import BoostLevelIconComponent
+import PromptUI
 
 private let enabledPublicBioEntities: EnabledEntityTypes = [.allUrl, .mention, .hashtag]
 private let enabledPrivateBioEntities: EnabledEntityTypes = [.internalUrl, .mention, .hashtag]
@@ -920,6 +921,24 @@ func infoItems(
         }
     }
     
+    // Phantom: a note about the chat, kept only on this device. Tapping edits it.
+    if let peer = data.peer, peer.id != context.account.peerId {
+        let isRussian = presentationData.strings.primaryComponent.languageCode.hasPrefix("ru")
+        let rawPeerId = peer.id.toInt64()
+        let note = PhantomSettings.note(for: rawPeerId)
+        let noteTitle = isRussian ? "Заметка Phantom" : "Phantom Note"
+        items[.peerInfo]!.append(PeerInfoScreenLabeledValueItem(id: 90003, label: noteTitle, text: note ?? (isRussian ? "Добавить заметку" : "Add a note"), textColor: note == nil ? .accent : .primary, textBehavior: .multiLine(maxLines: 6, enabledEntities: []), action: { [weak interaction] _, _ in
+            guard let controller = interaction?.getController() else {
+                return
+            }
+            controller.present(promptController(context: context, text: noteTitle, value: note, placeholder: isRussian ? "Кто это, откуда контакт…" : "Who this is, where you met…", characterLimit: 500, apply: { value in
+                if let value {
+                    PhantomSettings.setNote(value, for: rawPeerId)
+                }
+            }), in: .window(.root))
+        }, requestLayout: { _ in }))
+    }
+
     // Phantom: while read receipts or typing statuses are off, a chat can be made an exception.
     if let peer = data.peer, peer.id != context.account.peerId, !PhantomSettings.sendReadMessages || !PhantomSettings.sendTyping {
         let isRussian = presentationData.strings.primaryComponent.languageCode.hasPrefix("ru")

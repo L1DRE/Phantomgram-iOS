@@ -258,6 +258,11 @@ final class SharedMediaPlayer {
                                             strongSelf.playbackItem?.seek(0.0)
                                             strongSelf.playbackItem?.play()
                                         default:
+                                            // Phantom: a voice or video message can stop after itself.
+                                            if PhantomSettings.noVoiceAutoplay, strongSelf.type == .voice {
+                                                strongSelf.mediaManager?.setPlaylist(nil, type: .voice, control: .playback(.pause))
+                                                return
+                                            }
                                             strongSelf.scheduledPlaybackAction = .play
                                             strongSelf.control(.next)
                                     }

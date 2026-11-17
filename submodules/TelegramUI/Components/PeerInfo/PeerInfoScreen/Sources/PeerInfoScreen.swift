@@ -2590,8 +2590,8 @@ final class PeerInfoScreenNode: ViewControllerTracingNode, PeerInfoScreenNodePro
             })
         }
         
-        if self.isSettings {
-            // Phantom: the Settings list and header read PhantomSettings when laid out.
+        do {
+            // Phantom: the Settings list, the header and the profile rows read PhantomSettings when laid out.
             self.phantomSettingsObserver = NotificationCenter.default.addObserver(forName: PhantomSettings.didChangeNotification, object: nil, queue: .main, using: { [weak self] _ in
                 guard let self, let (layout, navigationHeight) = self.validLayout else {
                     return

@@ -38,6 +38,9 @@ public enum PhantomSettings {
         static let bypassCopyProtection = "phantom.bypassCopyProtection"
         static let shakeTogglesGhost = "phantom.shakeTogglesGhost"
         static let previewVoiceMessages = "phantom.previewVoiceMessages"
+        static let noVoiceAutoplay = "phantom.noVoiceAutoplay"
+        static let appSwitcherCover = "phantom.appSwitcherCover"
+        static let peerNotes = "phantom.peerNotes"
     }
 
     private static func bool(_ key: String, default defaultValue: Bool) -> Bool {
@@ -175,6 +178,35 @@ public enum PhantomSettings {
         set { set(newValue, Key.previewVoiceMessages) }
     }
 
+    /// After a voice or video message ends, do not start the next one.
+    public static var noVoiceAutoplay: Bool {
+        get { return bool(Key.noVoiceAutoplay, default: false) }
+        set { set(newValue, Key.noVoiceAutoplay) }
+    }
+
+    /// Cover the app with the Phantomgram logo in the app switcher.
+    public static var appSwitcherCover: Bool {
+        get { return bool(Key.appSwitcherCover, default: false) }
+        set { set(newValue, Key.appSwitcherCover) }
+    }
+
+    /// Notes the user keeps about chats, by raw peer id. Stored only on this device.
+    public static func note(for peerId: Int64) -> String? {
+        let notes = UserDefaults.standard.dictionary(forKey: Key.peerNotes) as? [String: String]
+        return notes?["\(peerId)"]
+    }
+
+    public static func setNote(_ note: String?, for peerId: Int64) {
+        var notes = UserDefaults.standard.dictionary(forKey: Key.peerNotes) as? [String: String] ?? [:]
+        if let note = note?.trimmingCharacters(in: .whitespacesAndNewlines), !note.isEmpty {
+            notes["\(peerId)"] = note
+        } else {
+            notes.removeValue(forKey: "\(peerId)")
+        }
+        UserDefaults.standard.set(notes, forKey: Key.peerNotes)
+        NotificationCenter.default.post(name: PhantomSettings.didChangeNotification, object: nil)
+    }
+
     /// Shaking the device turns ghost mode on or off.
     public static var shakeTogglesGhost: Bool {
         get { return bool(Key.shakeTogglesGhost, default: false) }
@@ -239,7 +271,8 @@ public enum PhantomSettings {
         Key.sendStoriesSeen, Key.sendContentConsumed, Key.markReadOnSend, Key.showMessageSeconds, Key.hideSponsoredMessages,
         Key.showPeerId, Key.hideStories, Key.hidePhoneNumber, Key.compactSettingsMenu, Key.confirmStickers, Key.confirmGifs,
         Key.stripLinkTracking, Key.disableLinkPreviews, Key.hideContactsTab, Key.hideGiftButton,
-        Key.confirmCalls, Key.shakeTogglesGhost, Key.bypassCopyProtection, Key.previewVoiceMessages
+        Key.confirmCalls, Key.shakeTogglesGhost, Key.bypassCopyProtection, Key.previewVoiceMessages,
+        Key.noVoiceAutoplay, Key.appSwitcherCover
     ]
 
     /// The switches and the ghost exceptions as JSON, to carry over to another install.
@@ -250,6 +283,9 @@ public enum PhantomSettings {
             values[key] = defaults.bool(forKey: key)
         }
         values[Key.ghostExceptions] = ghostExceptions.sorted()
+        if let notes = defaults.dictionary(forKey: Key.peerNotes) as? [String: String], !notes.isEmpty {
+            values[Key.peerNotes] = notes
+        }
         values["phantom.export"] = 1
         guard let data = try? JSONSerialization.data(withJSONObject: values, options: [.sortedKeys]), let string = String(data: data, encoding: .utf8) else {
             return "{}"
@@ -270,6 +306,9 @@ public enum PhantomSettings {
         }
         if let exceptions = values[Key.ghostExceptions] as? [NSNumber] {
             defaults.set(exceptions, forKey: Key.ghostExceptions)
+        }
+        if let notes = values[Key.peerNotes] as? [String: String] {
+            defaults.set(notes, forKey: Key.peerNotes)
         }
         NotificationCenter.default.post(name: PhantomSettings.didChangeNotification, object: nil)
         return true

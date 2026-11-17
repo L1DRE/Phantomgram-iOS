@@ -2029,6 +2029,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
     }
 
     func handleWillResignActive() {
+        phantomShowAppSwitcherCover(in: self.window)
         self.isActiveValue = false
         self.isActivePromise.set(false)
         self.clearNotificationsManager?.commitNow()
@@ -2135,6 +2136,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
     }
 
     func handleDidBecomeActive() {
+        phantomHideAppSwitcherCover()
         self.isInForegroundValue = true
         self.isInForegroundPromise.set(true)
         self.isActiveValue = true
@@ -3514,6 +3516,38 @@ final class UpdateSettings: Codable, Equatable {
     static func ==(lhs: UpdateSettings, rhs: UpdateSettings) -> Bool {
         return lhs.url == rhs.url
     }
+}
+
+/// Phantom: the logo over the app while it is not active, so the app switcher shows no chats.
+private var phantomAppSwitcherCover: UIView?
+
+private func phantomShowAppSwitcherCover(in window: UIWindow?) {
+    guard PhantomSettings.appSwitcherCover, phantomAppSwitcherCover == nil, let window else {
+        return
+    }
+    let cover = UIView(frame: window.bounds)
+    cover.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    cover.backgroundColor = UIColor(rgb: 0x0b0b10)
+    let logoView = UIImageView(image: UIImage(bundleImageName: "Settings/PhantomLogo"))
+    logoView.contentMode = .scaleAspectFit
+    logoView.frame = CGRect(x: 0.0, y: 0.0, width: 120.0, height: 120.0)
+    logoView.center = CGPoint(x: cover.bounds.midX, y: cover.bounds.midY)
+    logoView.autoresizingMask = [.flexibleLeftMargin, .flexibleRightMargin, .flexibleTopMargin, .flexibleBottomMargin]
+    cover.addSubview(logoView)
+    window.addSubview(cover)
+    phantomAppSwitcherCover = cover
+}
+
+private func phantomHideAppSwitcherCover() {
+    guard let cover = phantomAppSwitcherCover else {
+        return
+    }
+    phantomAppSwitcherCover = nil
+    UIView.animate(withDuration: 0.2, animations: {
+        cover.alpha = 0.0
+    }, completion: { _ in
+        cover.removeFromSuperview()
+    })
 }
 
 /// Phantom: a local notification a day before the sideload signature runs out, rescheduled at
